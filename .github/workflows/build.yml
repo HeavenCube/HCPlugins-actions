@@ -222,7 +222,6 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          PROJECT_NAME: ${{ inputs.project-name }}
           RELEASE_TAG: ${{ steps.release-version.outputs.tag }}
           RELEASE_VERSION: ${{ steps.release-version.outputs.version }}
           RELEASE_DATE: ${{ steps.release-version.outputs.date }}
@@ -274,6 +273,6 @@ jobs:
 
           gh release create "${RELEASE_TAG}" "${assets[@]}" \
             --target "${GITHUB_SHA}" \
-            --title "${PROJECT_NAME}-${RELEASE_DATE}-b${RELEASE_VERSION}" \
+            --title "${RELEASE_DATE}-b${RELEASE_VERSION}" \
             --notes-file "${notes_file}" \
             --latest

@@ -24,7 +24,7 @@ jobs:
 ```
 
 A successful `main` build creates `v1`, then `v2`, etc. Gradle receives a plugin
-version such as `2026.09.26-b3`; PR builds never create a release.
+version such as `2026.09.26-b3`, which is also the release title; PR builds never create a release.
 
 ## Plugin using HCCore
 
