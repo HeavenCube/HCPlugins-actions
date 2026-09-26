@@ -3,7 +3,8 @@
 CI/CD partagé pour les repositories `HCPlugins-*` de HeavenCube.
 
 Le but est de garder chaque plugin indépendant tout en centralisant Java 25, Gradle, cache,
-artifacts, publication Maven et releases GitHub.
+artifacts et releases GitHub. Les plugins qui utilisent HCCore compilent son petit module
+`core-api` directement depuis le dépôt Git Core avec un build composite Gradle.
 
 ## Build + release automatique
 
@@ -65,33 +66,28 @@ Entrées utiles :
 - `release-branch` : `main` par défaut.
 - `release-tag-prefix` : `v` par défaut.
 - `release-assets` : permet de remplacer les assets de release ; sinon `artifact-path` est utilisé.
-- `publish-gradle-task` : tâche Gradle facultative exécutée avec le même numéro de version avant
-  la création de la release.
+- `core-source` : clone `HCPlugins-Core@main` pour les consommateurs qui compilent contre Core.
 
-Pour un projet qui publie aussi une API Maven :
+Pour un plugin dépendant de HCCore :
 
 ```yaml
 permissions:
   contents: write
-  packages: write
 
 jobs:
   build:
     uses: HeavenCube/HCPlugins-actions/.github/workflows/build.yml@main
     with:
-      project-name: HCCore
-      artifact-path: core-plugin/build/libs/HCCore-*.jar
-      publish-gradle-task: ":core-api:publish"
+      project-name: HCGlowing
+      artifact-path: build/libs/HCGlowing-*.jar
+      core-source: true
     secrets: inherit
 ```
 
-La publication Maven est volontairement intégrée au build de release. Une release créée avec le
-`GITHUB_TOKEN` ne doit pas être utilisée comme mécanisme pour déclencher un second workflow.
-
-## Publication Maven autonome
-
-`.github/workflows/publish-maven.yml` reste disponible pour les cas qui ont besoin d'une
-publication indépendante.
+Le secret d'organisation `HCPLUGINS_CORE_READ_TOKEN` doit autoriser la lecture du dépôt privé
+`HeavenCube/HCPlugins-Core`. Le workflow clone sa branche `main` dans
+`.hcplugins/HCPlugins-Core` avant le build. En local, les deux dépôts peuvent rester côte à côte.
+La configuration Gradle et Paper est détaillée dans le [modèle de consommateur](docs/consumer-template.md).
 
 ## Composite action
 
@@ -119,6 +115,7 @@ workflow partagé.
 
 - permissions minimales côté repository consommateur ;
 - actions tierces épinglées sur SHA ;
-- aucun secret requis pour les PR ;
+- aucun secret requis pour les PR des plugins sans Core ; les PR internes des plugins
+  dépendant de Core utilisent le jeton de lecture du dépôt privé ;
 - aucune logique métier Minecraft ici ;
 - chaque plugin garde son propre Gradle et ses versions de dépendances.

@@ -16,17 +16,18 @@ Do not add Minecraft plugin business logic, Paper code or project-specific hacks
 - Release notes list commits since the previous numeric release, including direct commits without pull requests.
 - Release numbering uses the maximum existing numeric release tag matching the configured prefix, then increments by exactly one.
 - Serialize builds per repository/ref so concurrent release builds cannot allocate the same version.
-- Optional package publication must happen in the same release build when it depends on that generated version; do not rely on a release created with `GITHUB_TOKEN` to trigger another workflow.
+- Consumers that use Core compile its `core-api` project from the current `HCPlugins-Core` main source through a Gradle composite build; no Maven package is published.
 - Prefer reusable workflows for the standard path and composite actions for custom jobs.
 - Do not create a complex CI framework unless several HCPlugins repositories genuinely need it.
 
 ## Security
 
 - Default to minimal GitHub token permissions.
-- Release callers need `contents: write`; Maven-package callers additionally need `packages: write`.
+- Release callers need `contents: write`.
+- Private Core source checkout requires a read-only token scoped to the Core repository.
 - Pin third-party actions to immutable full commit SHAs.
 - Do not print secrets or credentials.
-- Pull-request builds must not require repository secrets.
+- Standard pull-request builds must not require repository secrets. Core source builds from private repositories require the Core read token; forked PRs cannot receive it by default.
 
 ## Compatibility
 

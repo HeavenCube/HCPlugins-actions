@@ -1,6 +1,6 @@
 # Consumer template
 
-Standard HCPlugins repository:
+Standard HCPlugins repository without a Core source dependency:
 
 ```yaml
 name: Build
@@ -19,31 +19,96 @@ jobs:
     uses: HeavenCube/HCPlugins-actions/.github/workflows/build.yml@main
     with:
       project-name: HCExample
-      artifact-path: build/libs/HCExample.jar
+      artifact-path: build/libs/HCExample-*.jar
     secrets: inherit
 ```
 
 A successful `main` build creates `v1`, then `v2`, etc. PR builds never create a release.
 
-Repository with a Maven API:
+## Plugin using HCCore
+
+Clone `HCPlugins-Core` next to the consumer locally:
+
+```text
+parent/
+├── HCPlugins-Core/
+└── HCPlugins-Glowing/
+```
+
+In the consumer's `settings.gradle.kts`, include Core's source build. The CI checkout path
+takes precedence when it exists; local builds use the sibling clone. The substitution maps
+the dependency notation to the `core-api` project, without accessing a Maven repository:
+
+```kotlin
+val coreBuild = file(".hcplugins/HCPlugins-Core").takeIf { it.isDirectory }
+    ?: file("../HCPlugins-Core")
+require(coreBuild.resolve("settings.gradle.kts").isFile) {
+    "Clone HCPlugins-Core next to this repository before building."
+}
+
+includeBuild(coreBuild) {
+    dependencySubstitution {
+        substitute(module("fr.noltox.hcplugins:core-api")).using(project(":core-api"))
+    }
+}
+```
+
+In `build.gradle.kts`, add only the compile-time dependency. Gradle builds the included
+`core-api` project as needed:
+
+```kotlin
+dependencies {
+    compileOnly("fr.noltox.hcplugins:core-api")
+}
+```
+
+The consumer's `paper-plugin.yml` still requires the installed HCCore plugin at runtime:
 
 ```yaml
+dependencies:
+  server:
+    HCCore:
+      load: BEFORE
+      required: true
+      join-classpath: true
+```
+
+In `.gitignore`, exclude the CI source checkout:
+
+```gitignore
+.hcplugins/
+```
+
+The consumer workflow opts in to Core source checkout:
+
+```yaml
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
 permissions:
   contents: write
-  packages: write
 
 jobs:
   build:
     uses: HeavenCube/HCPlugins-actions/.github/workflows/build.yml@main
     with:
-      project-name: HCCore
-      artifact-path: core-plugin/build/libs/HCCore-*.jar
-      publish-gradle-task: ":core-api:publish"
+      project-name: HCGlowing
+      artifact-path: build/libs/HCGlowing-*.jar
+      core-source: true
     secrets: inherit
 ```
 
-Keep `@main` so consumers receive shared workflow updates automatically.
+Configure an organization secret named `HCPLUGINS_CORE_READ_TOKEN` with read-only access
+to `HeavenCube/HCPlugins-Core`, and make it available to the consumer repository. The
+standard `GITHUB_TOKEN` cannot read a different private repository. Forked pull requests
+do not receive this secret by default, so this template is intended for internal branches.
 
-For private consumers, grant `HCPlugins-actions` access under the shared repository's
-Actions access settings. If the consumer restricts allowed actions, permit GitHub-owned
-actions and `gradle/actions/setup-gradle` at the SHA used by the shared workflow.
+Keep `@main` so consumers receive shared workflow updates automatically. For private
+consumers, grant `HCPlugins-actions` access under the shared repository's Actions access
+settings. If the consumer restricts allowed actions, permit GitHub-owned actions and
+`gradle/actions/setup-gradle` at the SHA used by the shared workflow.

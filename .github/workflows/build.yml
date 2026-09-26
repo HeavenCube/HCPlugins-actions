@@ -37,6 +37,11 @@ on:
         required: false
         default: 14
         type: number
+      core-source:
+        description: Checkout the current HCPlugins-Core main sources for a Gradle composite build.
+        required: false
+        default: false
+        type: boolean
       create-release:
         description: Create an incrementing GitHub release for successful builds of release-branch.
         required: false
@@ -57,11 +62,10 @@ on:
         required: false
         default: ""
         type: string
-      publish-gradle-task:
-        description: Optional Gradle publication task run with the resolved release version before creating the release.
+    secrets:
+      HCPLUGINS_CORE_READ_TOKEN:
+        description: Read-only token for the private HCPlugins-Core repository when core-source is enabled.
         required: false
-        default: ""
-        type: string
     outputs:
       release-version:
         description: Numeric version generated for this build, empty for non-release builds.
@@ -72,7 +76,6 @@ on:
 
 permissions:
   contents: write
-  packages: write
 
 jobs:
   build:
@@ -90,6 +93,27 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+
+      - name: Check Core access
+        if: ${{ inputs.core-source }}
+        shell: bash
+        env:
+          CORE_READ_TOKEN: ${{ secrets.HCPLUGINS_CORE_READ_TOKEN }}
+        run: |
+          if [[ -z "${CORE_READ_TOKEN}" ]]; then
+            echo "::error::HCPLUGINS_CORE_READ_TOKEN is required when core-source is enabled."
+            exit 1
+          fi
+
+      - name: Checkout Core main
+        if: ${{ inputs.core-source }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: HeavenCube/HCPlugins-Core
+          ref: main
+          path: .hcplugins/HCPlugins-Core
+          token: ${{ secrets.HCPLUGINS_CORE_READ_TOKEN }}
+          persist-credentials: false
 
       - name: Set up JDK
         uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
@@ -182,19 +206,6 @@ jobs:
           path: ${{ inputs.artifact-path }}
           retention-days: ${{ inputs.retention-days }}
           if-no-files-found: error
-
-      - name: Publish release package
-        if: ${{ steps.release-version.outputs.enabled == 'true' && inputs.publish-gradle-task != '' }}
-        shell: bash
-        env:
-          GITHUB_ACTOR: ${{ github.actor }}
-          GITHUB_TOKEN: ${{ github.token }}
-          PUBLISH_GRADLE_TASK: ${{ inputs.publish-gradle-task }}
-          GRADLE_ARGUMENTS: ${{ inputs.gradle-arguments }}
-          RELEASE_VERSION: ${{ steps.release-version.outputs.version }}
-        run: |
-          set -euo pipefail
-          ./gradlew ${PUBLISH_GRADLE_TASK} ${GRADLE_ARGUMENTS} -Pversion="${RELEASE_VERSION}"
 
       - name: Create GitHub release
         if: ${{ steps.release-version.outputs.enabled == 'true' }}
