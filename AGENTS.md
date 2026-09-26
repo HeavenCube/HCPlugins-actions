@@ -30,8 +30,8 @@ Do not add Minecraft plugin business logic, Paper code or project-specific hacks
 
 - Treat workflow inputs and outputs as public API.
 - Avoid silently changing input semantics.
-- Breaking workflow contracts require a new major version once version tags are in use.
-- During bootstrap callers may use `@main`; once stable, consumers should move to `@v1`.
+- Consumers use `@main` to receive shared workflow updates automatically.
+- Keep input and output changes compatible with existing consumers; coordinate breaking changes across affected repositories.
 
 ## Git
 

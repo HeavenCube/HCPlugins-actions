@@ -101,10 +101,16 @@ steps:
   - run: ./gradlew build
 ```
 
-## Versioning de HCPlugins-actions
+## Référence de HCPlugins-actions
 
-Pendant le bootstrap, les consommateurs utilisent `@main`. Une fois le contrat stabilisé,
-créer `v1` et faire pointer les repositories vers `@v1`. Une rupture de contrat devient `v2`.
+Les consommateurs utilisent `@main` pour recevoir automatiquement les corrections des workflows
+partagés. Les changements d'inputs et d'outputs doivent rester compatibles avec les consommateurs
+existants ; toute rupture nécessite une migration coordonnée des repositories concernés.
+
+Les repositories privés consommateurs doivent être autorisés dans les paramètres d'accès Actions
+de `HCPlugins-actions`. Si leur politique Actions limite les actions externes, elle doit autoriser
+les actions GitHub (`actions/*`) et `gradle/actions/setup-gradle` à la révision utilisée par le
+workflow partagé.
 
 ## Principes
 

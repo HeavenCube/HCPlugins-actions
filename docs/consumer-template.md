@@ -42,4 +42,8 @@ jobs:
     secrets: inherit
 ```
 
-After HCPlugins-actions is stable, replace `@main` with `@v1`.
+Keep `@main` so consumers receive shared workflow updates automatically.
+
+For private consumers, grant `HCPlugins-actions` access under the shared repository's
+Actions access settings. If the consumer restricts allowed actions, permit GitHub-owned
+actions and `gradle/actions/setup-gradle` at the SHA used by the shared workflow.
