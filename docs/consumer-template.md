@@ -1,6 +1,6 @@
 # Consumer template
 
-Minimal build workflow for a standard HCPlugins repository:
+Standard HCPlugins repository:
 
 ```yaml
 name: Build
@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -23,26 +23,23 @@ jobs:
     secrets: inherit
 ```
 
-For repositories that publish a Maven API:
+A successful `main` build creates `v1`, then `v2`, etc. PR builds never create a release.
+
+Repository with a Maven API:
 
 ```yaml
-name: Publish API
-
-on:
-  release:
-    types: [published]
-  workflow_dispatch:
-
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 jobs:
-  publish:
-    uses: HeavenCube/HCPlugins-actions/.github/workflows/publish-maven.yml@main
+  build:
+    uses: HeavenCube/HCPlugins-actions/.github/workflows/build.yml@main
     with:
-      gradle-task: publish
+      project-name: HCCore
+      artifact-path: core-plugin/build/libs/HCCore.jar
+      publish-gradle-task: ":core-api:publish"
     secrets: inherit
 ```
 
-After the shared repository is considered stable, replace `@main` with `@v1`.
+After HCPlugins-actions is stable, replace `@main` with `@v1`.

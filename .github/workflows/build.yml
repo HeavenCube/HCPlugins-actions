@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       project-name:
-        description: Human-readable project name used for artifacts.
+        description: Human-readable project name used for artifacts and releases.
         required: true
         type: string
       java-version:
@@ -28,23 +28,62 @@ on:
         default: ""
         type: string
       artifact-name:
-        description: Optional artifact name. Empty derives one from project-name and commit SHA.
+        description: Optional Actions artifact name.
         required: false
         default: ""
         type: string
       retention-days:
-        description: Artifact retention in days.
+        description: Actions artifact retention in days.
         required: false
         default: 14
         type: number
+      create-release:
+        description: Create an incrementing GitHub release for successful builds of release-branch.
+        required: false
+        default: true
+        type: boolean
+      release-branch:
+        description: Branch whose successful builds create releases.
+        required: false
+        default: main
+        type: string
+      release-tag-prefix:
+        description: Prefix used for incrementing release tags, for example v -> v1, v2, v3.
+        required: false
+        default: v
+        type: string
+      release-assets:
+        description: Optional multiline asset paths/globs. Empty reuses artifact-path.
+        required: false
+        default: ""
+        type: string
+      publish-gradle-task:
+        description: Optional Gradle publication task run with the resolved release version before creating the release.
+        required: false
+        default: ""
+        type: string
+    outputs:
+      release-version:
+        description: Numeric version generated for this build, empty for non-release builds.
+        value: ${{ jobs.build.outputs.release-version }}
+      release-tag:
+        description: Release tag generated for this build, empty for non-release builds.
+        value: ${{ jobs.build.outputs.release-tag }}
 
 permissions:
-  contents: read
+  contents: write
+  packages: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    concurrency:
+      group: hcplugins-build-${{ github.repository }}-${{ github.ref }}
+      cancel-in-progress: false
+    outputs:
+      release-version: ${{ steps.release-version.outputs.version }}
+      release-tag: ${{ steps.release-version.outputs.tag }}
 
     steps:
       - name: Checkout
@@ -59,12 +98,50 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
+      - name: Resolve release version
+        id: release-version
+        if: ${{ inputs.create-release && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == format('refs/heads/{0}', inputs.release-branch) }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_PREFIX: ${{ inputs.release-tag-prefix }}
+        run: |
+          set -euo pipefail
+
+          highest=0
+          while IFS= read -r tag; do
+            [[ -z "${tag}" ]] && continue
+            if [[ "${tag}" == "${TAG_PREFIX}"* ]]; then
+              number="${tag#"${TAG_PREFIX}"}"
+              if [[ "${number}" =~ ^[0-9]+$ ]] && (( number > highest )); then
+                highest="${number}"
+              fi
+            fi
+          done < <(
+            gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100"               --jq '.[].tag_name'
+          )
+
+          version=$((highest + 1))
+          tag="${TAG_PREFIX}${version}"
+
+          echo "enabled=true" >> "${GITHUB_OUTPUT}"
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
+
       - name: Build
         shell: bash
         env:
           GRADLE_TASK: ${{ inputs.gradle-task }}
           GRADLE_ARGUMENTS: ${{ inputs.gradle-arguments }}
-        run: ./gradlew ${GRADLE_TASK} ${GRADLE_ARGUMENTS}
+          RELEASE_ENABLED: ${{ steps.release-version.outputs.enabled }}
+          RELEASE_VERSION: ${{ steps.release-version.outputs.version }}
+        run: |
+          set -euo pipefail
+          version_argument=""
+          if [[ "${RELEASE_ENABLED}" == "true" ]]; then
+            version_argument="-Pversion=${RELEASE_VERSION}"
+          fi
+          ./gradlew ${GRADLE_TASK} ${GRADLE_ARGUMENTS} ${version_argument}
 
       - name: Resolve artifact name
         if: ${{ inputs.artifact-path != '' }}
@@ -74,12 +151,17 @@ jobs:
           EXPLICIT_NAME: ${{ inputs.artifact-name }}
           PROJECT_NAME: ${{ inputs.project-name }}
           SHA: ${{ github.sha }}
+          RELEASE_ENABLED: ${{ steps.release-version.outputs.enabled }}
+          RELEASE_TAG: ${{ steps.release-version.outputs.tag }}
         run: |
           if [[ -n "${EXPLICIT_NAME}" ]]; then
-            echo "name=${EXPLICIT_NAME}" >> "${GITHUB_OUTPUT}"
+            name="${EXPLICIT_NAME}"
+          elif [[ "${RELEASE_ENABLED}" == "true" ]]; then
+            name="${PROJECT_NAME}-${RELEASE_TAG}"
           else
-            echo "name=${PROJECT_NAME}-${SHA:0:7}" >> "${GITHUB_OUTPUT}"
+            name="${PROJECT_NAME}-${SHA:0:7}"
           fi
+          echo "name=${name}" >> "${GITHUB_OUTPUT}"
 
       - name: Upload artifact
         if: ${{ inputs.artifact-path != '' }}
@@ -89,3 +171,50 @@ jobs:
           path: ${{ inputs.artifact-path }}
           retention-days: ${{ inputs.retention-days }}
           if-no-files-found: error
+
+      - name: Publish release package
+        if: ${{ steps.release-version.outputs.enabled == 'true' && inputs.publish-gradle-task != '' }}
+        shell: bash
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ github.token }}
+          PUBLISH_GRADLE_TASK: ${{ inputs.publish-gradle-task }}
+          GRADLE_ARGUMENTS: ${{ inputs.gradle-arguments }}
+          RELEASE_VERSION: ${{ steps.release-version.outputs.version }}
+        run: |
+          set -euo pipefail
+          ./gradlew ${PUBLISH_GRADLE_TASK} ${GRADLE_ARGUMENTS} -Pversion="${RELEASE_VERSION}"
+
+      - name: Create GitHub release
+        if: ${{ steps.release-version.outputs.enabled == 'true' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROJECT_NAME: ${{ inputs.project-name }}
+          RELEASE_TAG: ${{ steps.release-version.outputs.tag }}
+          EXPLICIT_RELEASE_ASSETS: ${{ inputs.release-assets }}
+          ARTIFACT_PATH: ${{ inputs.artifact-path }}
+        run: |
+          set -euo pipefail
+
+          patterns="${EXPLICIT_RELEASE_ASSETS}"
+          if [[ -z "${patterns}" ]]; then
+            patterns="${ARTIFACT_PATH}"
+          fi
+
+          assets=()
+          if [[ -n "${patterns}" ]]; then
+            while IFS= read -r pattern; do
+              [[ -z "${pattern}" ]] && continue
+              while IFS= read -r file; do
+                [[ -n "${file}" ]] && assets+=("${file}")
+              done < <(compgen -G "${pattern}" || true)
+            done <<< "${patterns}"
+          fi
+
+          if [[ -n "${patterns}" && ${#assets[@]} -eq 0 ]]; then
+            echo "::error::No release asset matched the configured path(s)."
+            exit 1
+          fi
+
+          gh release create "${RELEASE_TAG}" "${assets[@]}"             --target "${GITHUB_SHA}"             --title "${PROJECT_NAME} ${RELEASE_TAG}"             --generate-notes             --latest
