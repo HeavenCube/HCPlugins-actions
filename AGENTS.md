@@ -24,10 +24,9 @@ Do not add Minecraft plugin business logic, Paper code or project-specific hacks
 
 - Default to minimal GitHub token permissions.
 - Release callers need `contents: write`.
-- Private Core source checkout requires a read-only token scoped to the Core repository.
 - Pin third-party actions to immutable full commit SHAs.
 - Do not print secrets or credentials.
-- Standard pull-request builds must not require repository secrets. Core source builds from private repositories require the Core read token; forked PRs cannot receive it by default.
+- Pull-request builds must not require repository secrets.
 
 ## Compatibility
 

@@ -84,10 +84,9 @@ jobs:
     secrets: inherit
 ```
 
-Le secret d'organisation `HCPLUGINS_CORE_READ_TOKEN` doit autoriser la lecture du dépôt privé
-`HeavenCube/HCPlugins-Core`. Le workflow clone sa branche `main` dans
-`.hcplugins/HCPlugins-Core` avant le build. En local, les deux dépôts peuvent rester côte à côte.
-La configuration Gradle et Paper est détaillée dans le [modèle de consommateur](docs/consumer-template.md).
+Le workflow clone la branche publique `main` de Core dans `.hcplugins/HCPlugins-Core` avant le
+build. Aucun secret n'est nécessaire. En local, les deux dépôts peuvent rester côte à côte. La
+configuration Gradle et Paper est détaillée dans le [modèle de consommateur](docs/consumer-template.md).
 
 ## Composite action
 
@@ -115,7 +114,6 @@ workflow partagé.
 
 - permissions minimales côté repository consommateur ;
 - actions tierces épinglées sur SHA ;
-- aucun secret requis pour les PR des plugins sans Core ; les PR internes des plugins
-  dépendant de Core utilisent le jeton de lecture du dépôt privé ;
+- aucun secret requis pour les PR ;
 - aucune logique métier Minecraft ici ;
 - chaque plugin garde son propre Gradle et ses versions de dépendances.

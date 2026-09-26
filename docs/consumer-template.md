@@ -103,10 +103,8 @@ jobs:
     secrets: inherit
 ```
 
-Configure an organization secret named `HCPLUGINS_CORE_READ_TOKEN` with read-only access
-to `HeavenCube/HCPlugins-Core`, and make it available to the consumer repository. The
-standard `GITHUB_TOKEN` cannot read a different private repository. Forked pull requests
-do not receive this secret by default, so this template is intended for internal branches.
+The workflow checks out the public `HCPlugins-Core` repository directly. No secret is required,
+including for pull requests.
 
 Keep `@main` so consumers receive shared workflow updates automatically. For private
 consumers, grant `HCPlugins-actions` access under the shared repository's Actions access

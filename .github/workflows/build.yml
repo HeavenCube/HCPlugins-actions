@@ -62,10 +62,6 @@ on:
         required: false
         default: ""
         type: string
-    secrets:
-      HCPLUGINS_CORE_READ_TOKEN:
-        description: Read-only token for the private HCPlugins-Core repository when core-source is enabled.
-        required: false
     outputs:
       release-version:
         description: Numeric version generated for this build, empty for non-release builds.
@@ -94,17 +90,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check Core access
-        if: ${{ inputs.core-source }}
-        shell: bash
-        env:
-          CORE_READ_TOKEN: ${{ secrets.HCPLUGINS_CORE_READ_TOKEN }}
-        run: |
-          if [[ -z "${CORE_READ_TOKEN}" ]]; then
-            echo "::error::HCPLUGINS_CORE_READ_TOKEN is required when core-source is enabled."
-            exit 1
-          fi
-
       - name: Checkout Core main
         if: ${{ inputs.core-source }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -112,7 +97,6 @@ jobs:
           repository: HeavenCube/HCPlugins-Core
           ref: main
           path: .hcplugins/HCPlugins-Core
-          token: ${{ secrets.HCPLUGINS_CORE_READ_TOKEN }}
           persist-credentials: false
 
       - name: Set up JDK
