@@ -12,6 +12,8 @@ Do not add Minecraft plugin business logic, Paper code or project-specific hacks
 - Consuming repositories own their Gradle build, dependency versions, Paper version and artifact layout.
 - A successful build of the configured release branch may create the next numeric GitHub release.
 - The release number is the source of truth for CI release builds and is passed to Gradle as `-Pversion=<n>`.
+- Release builds also receive the UTC date as `-PbuildDate=YYYY.MM.DD`; titles use `<project-name>-YYYY.MM.DD-b<n>`.
+- Release notes list commits since the previous numeric release, including direct commits without pull requests.
 - Release numbering uses the maximum existing numeric release tag matching the configured prefix, then increments by exactly one.
 - Serialize builds per repository/ref so concurrent release builds cannot allocate the same version.
 - Optional package publication must happen in the same release build when it depends on that generated version; do not rely on a release created with `GITHUB_TOKEN` to trigger another workflow.

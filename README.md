@@ -42,6 +42,9 @@ v3
 Le workflow cherche le plus grand tag de release numérique avec le préfixe configuré et ajoute
 exactement `1`. Le numéro obtenu est aussi passé à Gradle avec `-Pversion=<n>`, de sorte que
 la version embarquée dans le plugin et la release restent cohérentes.
+La CI fournit aussi `-PbuildDate=AAAA.MM.JJ` (UTC) à Gradle. Le titre de release et le nom
+de l'artifact Actions suivent `<project-name>-AAAA.MM.JJ-bN`. Les notes listent les commits
+depuis la release précédente, y compris les commits directs sans pull request.
 
 Exemple :
 
@@ -77,7 +80,7 @@ jobs:
     uses: HeavenCube/HCPlugins-actions/.github/workflows/build.yml@main
     with:
       project-name: HCCore
-      artifact-path: core-plugin/build/libs/HCCore.jar
+      artifact-path: core-plugin/build/libs/HCCore-*.jar
       publish-gradle-task: ":core-api:publish"
     secrets: inherit
 ```

@@ -88,6 +88,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
 
       - name: Set up JDK
         uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
@@ -123,10 +125,17 @@ jobs:
 
           version=$((highest + 1))
           tag="${TAG_PREFIX}${version}"
+          release_date=$(date -u +%Y.%m.%d)
 
           echo "enabled=true" >> "${GITHUB_OUTPUT}"
           echo "version=${version}" >> "${GITHUB_OUTPUT}"
           echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
+          if (( highest > 0 )); then
+            echo "previous-tag=${TAG_PREFIX}${highest}" >> "${GITHUB_OUTPUT}"
+          else
+            echo "previous-tag=" >> "${GITHUB_OUTPUT}"
+          fi
+          echo "date=${release_date}" >> "${GITHUB_OUTPUT}"
 
       - name: Build
         shell: bash
@@ -135,13 +144,14 @@ jobs:
           GRADLE_ARGUMENTS: ${{ inputs.gradle-arguments }}
           RELEASE_ENABLED: ${{ steps.release-version.outputs.enabled }}
           RELEASE_VERSION: ${{ steps.release-version.outputs.version }}
+          RELEASE_DATE: ${{ steps.release-version.outputs.date }}
         run: |
           set -euo pipefail
-          version_argument=""
+          version_arguments=()
           if [[ "${RELEASE_ENABLED}" == "true" ]]; then
-            version_argument="-Pversion=${RELEASE_VERSION}"
+            version_arguments=("-Pversion=${RELEASE_VERSION}" "-PbuildDate=${RELEASE_DATE}")
           fi
-          ./gradlew ${GRADLE_TASK} ${GRADLE_ARGUMENTS} ${version_argument}
+          ./gradlew ${GRADLE_TASK} ${GRADLE_ARGUMENTS} "${version_arguments[@]}"
 
       - name: Resolve artifact name
         if: ${{ inputs.artifact-path != '' }}
@@ -152,12 +162,13 @@ jobs:
           PROJECT_NAME: ${{ inputs.project-name }}
           SHA: ${{ github.sha }}
           RELEASE_ENABLED: ${{ steps.release-version.outputs.enabled }}
-          RELEASE_TAG: ${{ steps.release-version.outputs.tag }}
+          RELEASE_VERSION: ${{ steps.release-version.outputs.version }}
+          RELEASE_DATE: ${{ steps.release-version.outputs.date }}
         run: |
           if [[ -n "${EXPLICIT_NAME}" ]]; then
             name="${EXPLICIT_NAME}"
           elif [[ "${RELEASE_ENABLED}" == "true" ]]; then
-            name="${PROJECT_NAME}-${RELEASE_TAG}"
+            name="${PROJECT_NAME}-${RELEASE_DATE}-b${RELEASE_VERSION}"
           else
             name="${PROJECT_NAME}-${SHA:0:7}"
           fi
@@ -192,6 +203,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PROJECT_NAME: ${{ inputs.project-name }}
           RELEASE_TAG: ${{ steps.release-version.outputs.tag }}
+          RELEASE_VERSION: ${{ steps.release-version.outputs.version }}
+          RELEASE_DATE: ${{ steps.release-version.outputs.date }}
+          PREVIOUS_TAG: ${{ steps.release-version.outputs.previous-tag }}
           EXPLICIT_RELEASE_ASSETS: ${{ inputs.release-assets }}
           ARTIFACT_PATH: ${{ inputs.artifact-path }}
         run: |
@@ -217,4 +231,28 @@ jobs:
             exit 1
           fi
 
-          gh release create "${RELEASE_TAG}" "${assets[@]}"             --target "${GITHUB_SHA}"             --title "${PROJECT_NAME} ${RELEASE_TAG}"             --generate-notes             --latest
+          if [[ -n "${PREVIOUS_TAG}" ]]; then
+            changelog_range="${PREVIOUS_TAG}..${GITHUB_SHA}"
+            changelog_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/${PREVIOUS_TAG}...${RELEASE_TAG}"
+          else
+            changelog_range="${GITHUB_SHA}"
+            changelog_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commits/${RELEASE_TAG}"
+          fi
+
+          commits=$(git log --no-merges --format='- %s (%h)' "${changelog_range}")
+          notes_file="${RUNNER_TEMP}/release-notes.md"
+          {
+            printf '## Changes\n\n'
+            if [[ -n "${commits}" ]]; then
+              printf '%s\n' "${commits}"
+            else
+              printf 'No source changes since %s.\n' "${PREVIOUS_TAG}"
+            fi
+            printf '\n**Full Changelog**: %s\n' "${changelog_url}"
+          } > "${notes_file}"
+
+          gh release create "${RELEASE_TAG}" "${assets[@]}" \
+            --target "${GITHUB_SHA}" \
+            --title "${PROJECT_NAME}-${RELEASE_DATE}-b${RELEASE_VERSION}" \
+            --notes-file "${notes_file}" \
+            --latest

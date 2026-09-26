@@ -37,7 +37,7 @@ jobs:
     uses: HeavenCube/HCPlugins-actions/.github/workflows/build.yml@main
     with:
       project-name: HCCore
-      artifact-path: core-plugin/build/libs/HCCore.jar
+      artifact-path: core-plugin/build/libs/HCCore-*.jar
       publish-gradle-task: ":core-api:publish"
     secrets: inherit
 ```
