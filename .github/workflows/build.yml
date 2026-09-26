@@ -42,6 +42,11 @@ on:
         required: false
         default: false
         type: boolean
+      source-repositories:
+        description: Public GitHub owner/repository names, one per line, cloned from main into .hcplugins/repository.
+        required: false
+        default: ""
+        type: string
       create-release:
         description: Create an incrementing GitHub release for successful builds of release-branch.
         required: false
@@ -98,6 +103,27 @@ jobs:
           ref: main
           path: .hcplugins/HCPlugins-Core
           persist-credentials: false
+
+      - name: Checkout additional source builds
+        if: ${{ inputs.source-repositories != '' }}
+        shell: bash
+        env:
+          SOURCE_REPOSITORIES: ${{ inputs.source-repositories }}
+        run: |
+          set -euo pipefail
+          while IFS= read -r repository; do
+            [[ -z "${repository}" ]] && continue
+            if [[ ! "${repository}" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+              echo "::error::Invalid source repository: ${repository}"
+              exit 1
+            fi
+            target=".hcplugins/${repository##*/}"
+            if [[ -e "${target}" ]]; then
+              echo "::error::Source checkout path already exists: ${target}"
+              exit 1
+            fi
+            git clone --quiet --depth 1 --branch main "https://github.com/${repository}.git" "${target}"
+          done <<< "${SOURCE_REPOSITORIES}"
 
       - name: Set up JDK
         uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1

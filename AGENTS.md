@@ -17,6 +17,7 @@ Do not add Minecraft plugin business logic, Paper code or project-specific hacks
 - Release numbering uses the maximum existing numeric release tag matching the configured prefix, then increments by exactly one.
 - Serialize builds per repository/ref so concurrent release builds cannot allocate the same version.
 - Consumers that use Core compile its `core-api` project from the current `HCPlugins-Core` main source through a Gradle composite build; no Maven package is published.
+- `source-repositories` optionally checks out other public sibling builds from `main` for Gradle composite consumers.
 - Prefer reusable workflows for the standard path and composite actions for custom jobs.
 - Do not create a complex CI framework unless several HCPlugins repositories genuinely need it.
 

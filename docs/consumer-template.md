@@ -106,6 +106,16 @@ jobs:
 The workflow checks out the public `HCPlugins-Core` repository directly. No secret is required,
 including for pull requests.
 
+For another public sibling source build, declare its repository in the caller:
+
+```yaml
+      source-repositories: HeavenCube/HCPlugins-PlaceholdersExtra
+```
+
+The workflow clones its current `main` to `.hcplugins/HCPlugins-PlaceholdersExtra`.
+The consumer can then use Gradle `includeBuild` with that path in CI and
+`../HCPlugins-PlaceholdersExtra` locally.
+
 Keep `@main` so consumers receive shared workflow updates automatically. For private
 consumers, grant `HCPlugins-actions` access under the shared repository's Actions access
 settings. If the consumer restricts allowed actions, permit GitHub-owned actions and
