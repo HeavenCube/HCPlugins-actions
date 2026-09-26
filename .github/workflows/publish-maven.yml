@@ -1,0 +1,51 @@
+name: Reusable Maven Publication
+
+on:
+  workflow_call:
+    inputs:
+      java-version:
+        description: JDK version.
+        required: false
+        default: "25"
+        type: string
+      gradle-task:
+        description: Gradle publication task.
+        required: false
+        default: publish
+        type: string
+      gradle-arguments:
+        description: Extra Gradle arguments.
+        required: false
+        default: --stacktrace
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up JDK
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: ${{ inputs.java-version }}
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      - name: Publish
+        shell: bash
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GRADLE_TASK: ${{ inputs.gradle-task }}
+          GRADLE_ARGUMENTS: ${{ inputs.gradle-arguments }}
+        run: ./gradlew ${GRADLE_TASK} ${GRADLE_ARGUMENTS}

@@ -1,0 +1,91 @@
+name: Reusable Gradle Build
+
+on:
+  workflow_call:
+    inputs:
+      project-name:
+        description: Human-readable project name used for artifacts.
+        required: true
+        type: string
+      java-version:
+        description: JDK version.
+        required: false
+        default: "25"
+        type: string
+      gradle-task:
+        description: Gradle task or task list to execute.
+        required: false
+        default: build
+        type: string
+      gradle-arguments:
+        description: Extra Gradle arguments.
+        required: false
+        default: --stacktrace
+        type: string
+      artifact-path:
+        description: Path or multiline glob to upload. Empty disables artifact upload.
+        required: false
+        default: ""
+        type: string
+      artifact-name:
+        description: Optional artifact name. Empty derives one from project-name and commit SHA.
+        required: false
+        default: ""
+        type: string
+      retention-days:
+        description: Artifact retention in days.
+        required: false
+        default: 14
+        type: number
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up JDK
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: ${{ inputs.java-version }}
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      - name: Build
+        shell: bash
+        env:
+          GRADLE_TASK: ${{ inputs.gradle-task }}
+          GRADLE_ARGUMENTS: ${{ inputs.gradle-arguments }}
+        run: ./gradlew ${GRADLE_TASK} ${GRADLE_ARGUMENTS}
+
+      - name: Resolve artifact name
+        if: ${{ inputs.artifact-path != '' }}
+        id: artifact
+        shell: bash
+        env:
+          EXPLICIT_NAME: ${{ inputs.artifact-name }}
+          PROJECT_NAME: ${{ inputs.project-name }}
+          SHA: ${{ github.sha }}
+        run: |
+          if [[ -n "${EXPLICIT_NAME}" ]]; then
+            echo "name=${EXPLICIT_NAME}" >> "${GITHUB_OUTPUT}"
+          else
+            echo "name=${PROJECT_NAME}-${SHA:0:7}" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Upload artifact
+        if: ${{ inputs.artifact-path != '' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.artifact.outputs.name }}
+          path: ${{ inputs.artifact-path }}
+          retention-days: ${{ inputs.retention-days }}
+          if-no-files-found: error
