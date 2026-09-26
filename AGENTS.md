@@ -11,7 +11,7 @@ Do not add Minecraft plugin business logic, Paper code or project-specific hacks
 - Java 25 is the default but remains configurable.
 - Consuming repositories own their Gradle build, dependency versions, Paper version and artifact layout.
 - A successful build of the configured release branch may create the next numeric GitHub release.
-- The release number is the source of truth for CI release builds and is passed to Gradle as `-Pversion=<n>`.
+- The numeric release number is the source of truth for tags; Gradle receives `-Pversion=YYYY.MM.DD-b<n>` for plugin metadata and JARs.
 - Release builds also receive the UTC date as `-PbuildDate=YYYY.MM.DD`; titles use `<project-name>-YYYY.MM.DD-b<n>`.
 - Release notes list commits since the previous numeric release, including direct commits without pull requests.
 - Release numbering uses the maximum existing numeric release tag matching the configured prefix, then increments by exactly one.

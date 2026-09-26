@@ -41,8 +41,8 @@ v3
 ```
 
 Le workflow cherche le plus grand tag de release numérique avec le préfixe configuré et ajoute
-exactement `1`. Le numéro obtenu est aussi passé à Gradle avec `-Pversion=<n>`, de sorte que
-la version embarquée dans le plugin et la release restent cohérentes.
+exactement `1`. Gradle reçoit `-Pversion=AAAA.MM.JJ-bN` : cette version est embarquée
+dans le plugin et figure dans le nom du JAR.
 La CI fournit aussi `-PbuildDate=AAAA.MM.JJ` (UTC) à Gradle. Le titre de release et le nom
 de l'artifact Actions suivent `<project-name>-AAAA.MM.JJ-bN`. Les notes listent les commits
 depuis la release précédente, y compris les commits directs sans pull request.
@@ -51,8 +51,8 @@ Exemple :
 
 ```text
 release v12
-plugin version = 12
-prochain build main -> v13 / plugin version 13
+plugin version = 2026.09.26-b12
+prochain build main -> v13 / plugin version 2026.09.26-b13
 ```
 
 Les builds du même repository et de la même ref sont sérialisés pour éviter que deux builds

@@ -23,7 +23,8 @@ jobs:
     secrets: inherit
 ```
 
-A successful `main` build creates `v1`, then `v2`, etc. PR builds never create a release.
+A successful `main` build creates `v1`, then `v2`, etc. Gradle receives a plugin
+version such as `2026.09.26-b3`; PR builds never create a release.
 
 ## Plugin using HCCore
 

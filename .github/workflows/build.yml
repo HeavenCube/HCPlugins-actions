@@ -183,7 +183,7 @@ jobs:
           set -euo pipefail
           version_arguments=()
           if [[ "${RELEASE_ENABLED}" == "true" ]]; then
-            version_arguments=("-Pversion=${RELEASE_VERSION}" "-PbuildDate=${RELEASE_DATE}")
+            version_arguments=("-Pversion=${RELEASE_DATE}-b${RELEASE_VERSION}" "-PbuildDate=${RELEASE_DATE}")
           fi
           ./gradlew ${GRADLE_TASK} ${GRADLE_ARGUMENTS} "${version_arguments[@]}"
 
