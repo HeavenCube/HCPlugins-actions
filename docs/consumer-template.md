@@ -85,6 +85,21 @@ dependencies:
       join-classpath: true
 ```
 
+For messages repeated across plugins (reload result, operator-only or player-only command),
+use the `CoreTranslations` service instead of copying the text into each plugin's configuration.
+HCCore owns `plugins/HCPlugins/translations.yml`; plugin-specific messages stay with their plugin.
+For example, after a successful reload:
+
+```java
+long started = System.nanoTime();
+// Reload the plugin's own configuration here.
+sender.sendMessage(HCPluginsCore.translations(plugin)
+        .reloadSuccess(plugin, System.nanoTime() - started));
+```
+
+`/hcplugins core reload` reloads the shared catalogue after edits. New messages that are genuinely
+shared can be added there and accessed with `CoreTranslations.render(key, placeholders)`.
+
 In `.gitignore`, exclude the CI source checkout:
 
 ```gitignore
