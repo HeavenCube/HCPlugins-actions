@@ -6,6 +6,13 @@ Every new plugin repository must also copy `templates/plugin/LICENSE` from this
 repository to its root as `LICENSE`. The source is visible for contributions,
 but use outside the official HeavenCube server requires prior written permission.
 
+Store editable files under `plugins/HCPlugins/` using Core's
+`fr.noltox.hcplugins.core.api.config.HCPluginFiles`. A plugin with one
+configuration uses `<PluginName>.yml` at that root. A plugin with multiple
+configuration files uses `<PluginName>/` beneath it. Copy bundled defaults with
+`HCPluginFiles.copyDefault(...)`; Paper's `saveDefaultConfig()` and
+`saveResource()` use the plugin's own data folder instead.
+
 ```yaml
 name: Build
 
