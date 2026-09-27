@@ -31,6 +31,18 @@ jobs:
 
 Les pull requests et branches non configurées font uniquement un build.
 
+Le cache Gradle des dépendances et des sorties de compilation fonctionne sans secret. Pour
+sauvegarder aussi le cache de configuration entre les exécutions, définir une seule fois le secret
+d'organisation `GRADLE_ENCRYPTION_KEY` avec accès aux repositories des plugins, puis conserver
+`secrets: inherit` dans leurs workflows. Sa valeur est une clé AES encodée en base64, générable
+avec `openssl rand -base64 16`. Ce secret est facultatif : les builds continuent de fonctionner
+sans lui, notamment pour les pull requests provenant de forks. Le dépôt `HCPlugins-actions` n'a
+pas besoin de posséder ce secret ; il doit être accessible aux repositories qui appellent le
+workflow.
+
+Comme chaque release reçoit une nouvelle valeur `-Pversion`, Gradle recalcule sa configuration
+pour ces builds ; la clé profite surtout aux exécutions répétées avec les mêmes paramètres.
+
 Chaque build réussi de `main` crée automatiquement une nouvelle release :
 
 ```text
@@ -97,6 +109,7 @@ steps:
   - uses: HeavenCube/HCPlugins-actions/.github/actions/setup-gradle@main
     with:
       java-version: "25"
+      cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
   - run: ./gradlew build
 ```
 

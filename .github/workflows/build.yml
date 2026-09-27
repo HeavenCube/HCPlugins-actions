@@ -67,6 +67,10 @@ on:
         required: false
         default: ""
         type: string
+    secrets:
+      GRADLE_ENCRYPTION_KEY:
+        description: Optional AES key for persisting the Gradle configuration cache between runs.
+        required: false
     outputs:
       release-version:
         description: Numeric version generated for this build, empty for non-release builds.
@@ -133,6 +137,8 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+        with:
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
 
       - name: Resolve release version
         id: release-version
