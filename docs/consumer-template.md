@@ -2,6 +2,10 @@
 
 Standard HCPlugins repository without a Core source dependency:
 
+Every new plugin repository must also copy `templates/plugin/LICENSE` from this
+repository to its root as `LICENSE`. The source is visible for contributions,
+but use outside the official HeavenCube server requires prior written permission.
+
 ```yaml
 name: Build
 
