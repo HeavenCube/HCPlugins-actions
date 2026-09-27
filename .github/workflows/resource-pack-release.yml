@@ -1,0 +1,133 @@
+name: Reusable Resource Pack Release
+
+on:
+  workflow_call:
+    inputs:
+      pack-name:
+        description: Name used for the release ZIP.
+        required: true
+        type: string
+      release-branch:
+        description: Branch whose successful runs create releases.
+        required: false
+        default: main
+        type: string
+      release-tag-prefix:
+        description: Prefix for incrementing numeric release tags.
+        required: false
+        default: v
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == format('refs/heads/{0}', inputs.release-branch) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: hcplugins-pack-release-${{ github.repository }}-${{ github.ref }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Resolve release version
+        id: version
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_PREFIX: ${{ inputs.release-tag-prefix }}
+        run: |
+          set -euo pipefail
+          tags=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" --jq '.[].tag_name')
+          highest=0
+          while IFS= read -r tag; do
+            [[ "${tag}" == "${TAG_PREFIX}"* ]] || continue
+            number="${tag#"${TAG_PREFIX}"}"
+            if [[ "${number}" =~ ^[0-9]+$ ]] && (( 10#${number} > highest )); then
+              highest=$((10#${number}))
+            fi
+          done <<< "${tags}"
+
+          next=$((highest + 1))
+          echo "tag=${TAG_PREFIX}${next}" >> "${GITHUB_OUTPUT}"
+          echo "name=$(date -u +%Y.%m.%d)-b${next}" >> "${GITHUB_OUTPUT}"
+          if (( highest > 0 )); then
+            echo "previous-tag=${TAG_PREFIX}${highest}" >> "${GITHUB_OUTPUT}"
+          else
+            echo "previous-tag=" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Package resource pack
+        id: pack
+        shell: bash
+        env:
+          PACK_NAME: ${{ inputs.pack-name }}
+          RELEASE_NAME: ${{ steps.version.outputs.name }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from zipfile import ZIP_DEFLATED, ZipFile
+
+          metadata = Path('pack.mcmeta')
+          assets = Path('assets')
+          if not metadata.is_file() or not assets.is_dir():
+              raise SystemExit('The resource pack must contain pack.mcmeta and assets/')
+          json.loads(metadata.read_text(encoding='utf-8'))
+          files = [metadata, *(p for p in assets.rglob('*') if p.is_file())]
+          if len(files) == 1:
+              raise SystemExit('The resource pack has no assets')
+          filename = f"{os.environ['PACK_NAME']}-{os.environ['RELEASE_NAME']}.zip"
+          with ZipFile(filename, 'w', ZIP_DEFLATED) as archive:
+              for path in files:
+                  archive.write(path, path.as_posix())
+          with ZipFile(filename) as archive:
+              if archive.testzip() is not None:
+                  raise SystemExit('The resource pack ZIP is corrupt')
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+              print(f'path={filename}', file=output)
+          PY
+
+      - name: Create GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+          RELEASE_NAME: ${{ steps.version.outputs.name }}
+          PREVIOUS_TAG: ${{ steps.version.outputs.previous-tag }}
+          PACK_PATH: ${{ steps.pack.outputs.path }}
+        run: |
+          set -euo pipefail
+          if [[ -n "${PREVIOUS_TAG}" ]]; then
+            changelog_range="${PREVIOUS_TAG}..${GITHUB_SHA}"
+            changelog_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/${PREVIOUS_TAG}...${RELEASE_TAG}"
+          else
+            changelog_range="${GITHUB_SHA}"
+            changelog_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commits/${RELEASE_TAG}"
+          fi
+
+          commits=$(git log --no-merges --format='- %s (%h)' "${changelog_range}")
+          notes_file="${RUNNER_TEMP}/release-notes.md"
+          {
+            printf '## Changes\n\n'
+            if [[ -n "${commits}" ]]; then
+              printf '%s\n' "${commits}"
+            else
+              printf 'No source changes since %s.\n' "${PREVIOUS_TAG}"
+            fi
+            printf '\n**Full Changelog**: %s\n' "${changelog_url}"
+          } > "${notes_file}"
+
+          gh release create "${RELEASE_TAG}" "${PACK_PATH}" \
+            --target "${GITHUB_SHA}" \
+            --title "${RELEASE_NAME}" \
+            --notes-file "${notes_file}" \
+            --latest

@@ -111,6 +111,33 @@ de `HCPlugins-actions`. Si leur politique Actions limite les actions externes, e
 les actions GitHub (`actions/*`) et `gradle/actions/setup-gradle` à la révision utilisée par le
 workflow partagé.
 
+## Release automatique d'un resource pack
+
+Un pack sans Gradle peut utiliser `.github/workflows/resource-pack-release.yml@main` :
+
+```yaml
+name: Release resource pack
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    uses: HeavenCube/HCPlugins-actions/.github/workflows/resource-pack-release.yml@main
+    with:
+      pack-name: HCPack-CustomGlowing
+```
+
+Ce workflow vérifie `pack.mcmeta`, crée un ZIP dont la racine contient seulement
+`pack.mcmeta` et `assets/`, puis publie une release `vN` avec le titre
+`AAAA.MM.JJ-bN` et les commits depuis la release précédente. Les exécutions
+sur une même branche sont sérialisées. Il ne nécessite ni Gradle ni Java.
+
 ## Principes
 
 - permissions minimales côté repository consommateur ;
