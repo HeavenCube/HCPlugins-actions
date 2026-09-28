@@ -1,5 +1,21 @@
 # HCPlugins-actions
 
+## Entry point and efficient handoff
+
+- Read this file, `git status --short`, then the relevant section of [docs/TECHNICAL.md](docs/TECHNICAL.md).
+- For plugin architecture or a new consumer, inspect the sibling Core AGENTS and
+  [Core's creation guide](https://github.com/HeavenCube/HCPlugins-Core/blob/main/docs/NEW_PLUGIN.md).
+  Every specialized HCPlugins plugin requires HCCore; generic Java workflow consumers need not.
+- Search only affected workflows/actions/callers with `rg`; batch independent reads and limit logs.
+  Do not load every plugin source or all guides for a workflow/documentation task.
+- Documentation-only changes: check links, contracts and `git diff --check`; no unnecessary Gradle builds.
+- For workflow changes, validate YAML/shell and affected callers. Preserve release gating/concurrency,
+  optional secret behavior and pinned action revisions; report local syntax checks separately from live CI.
+- Maintain the guide when inputs/outputs change. CLAUDE.md/GEMINI.md point here, without copied rules.
+- No subagents without an explicit request/applicable instruction. Resolve routine choices autonomously.
+- Final response: concise French, changes, exact validation, remaining limitation/action. Handoff:
+  goal, affected repositories/files/commits, verified results and next step. Never include secret values.
+
 ## Scope
 
 This repository owns reusable GitHub Actions infrastructure for HeavenCube HCPlugins repositories.

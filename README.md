@@ -25,7 +25,8 @@ jobs:
     uses: HeavenCube/HCPlugins-actions/.github/workflows/build.yml@main
     with:
       project-name: HCExample
-      artifact-path: build/libs/HCExample.jar
+      artifact-path: build/libs/HCExample-*.jar
+      core-source: true
     secrets: inherit
 ```
 
@@ -152,6 +153,9 @@ Ce workflow vérifie `pack.mcmeta`, crée un ZIP dont la racine contient seuleme
 sur une même branche sont sérialisées. Il ne nécessite ni Gradle ni Java.
 
 ## Principes
+
+Pour la maintenance IA : [AGENTS.md](AGENTS.md) et [guide technique](docs/TECHNICAL.md).
+Pour un nouveau plugin : [guide Core](https://github.com/HeavenCube/HCPlugins-Core/blob/main/docs/NEW_PLUGIN.md).
 
 - permissions minimales côté repository consommateur ;
 - actions tierces épinglées sur SHA ;

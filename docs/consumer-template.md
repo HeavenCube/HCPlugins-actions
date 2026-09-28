@@ -1,10 +1,16 @@
 # Consumer template
 
-Standard HCPlugins repository without a Core source dependency:
+Default HeavenCube plugin repository: HCCore is required. Before implementing a new plugin,
+read the [Core creation guide](https://github.com/HeavenCube/HCPlugins-Core/blob/main/docs/NEW_PLUGIN.md)
+and its AGENTS. Use existing Core services; add genuinely shared behavior there before consumers.
 
 Every new plugin repository must also copy `templates/plugin/LICENSE` from this
 repository to its root as `LICENSE`. The source is visible for contributions,
 but use outside the official HeavenCube server requires prior written permission.
+
+Adapt the short AGENTS.md of an active plugin, add CLAUDE.md/GEMINI.md pointing to it,
+and document the plugin's code paths/invariants in docs/TECHNICAL.md. Keep shared architecture
+in the Core guides instead of importing all documentation into an AI's startup context.
 
 Store editable files under `plugins/HCPlugins/` using Core's
 `fr.noltox.hcplugins.core.api.config.HCPluginFiles`. A plugin with one
@@ -31,6 +37,7 @@ jobs:
     with:
       project-name: HCExample
       artifact-path: build/libs/HCExample-*.jar
+      core-source: true
     secrets: inherit
 ```
 
