@@ -144,7 +144,7 @@ jobs:
   release:
     uses: HeavenCube/HCPlugins-actions/.github/workflows/resource-pack-release.yml@main
     with:
-      pack-name: HCPack-CustomGlowing
+      pack-name: HCPack-CustomAssets
 ```
 
 Ce workflow vérifie `pack.mcmeta`, crée un ZIP dont la racine contient seulement
