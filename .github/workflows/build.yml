@@ -234,6 +234,7 @@ jobs:
           PREVIOUS_TAG: ${{ steps.release-version.outputs.previous-tag }}
           EXPLICIT_RELEASE_ASSETS: ${{ inputs.release-assets }}
           ARTIFACT_PATH: ${{ inputs.artifact-path }}
+          PROJECT_NAME: ${{ inputs.project-name }}
         run: |
           set -euo pipefail
 
@@ -255,6 +256,21 @@ jobs:
           if [[ -n "${patterns}" && ${#assets[@]} -eq 0 ]]; then
             echo "::error::No release asset matched the configured path(s)."
             exit 1
+          fi
+
+          jar_assets=()
+          for asset in "${assets[@]}"; do
+            if [[ "${asset}" == *.jar ]]; then
+              jar_assets+=("${asset}")
+            fi
+          done
+
+          if [[ ${#jar_assets[@]} -gt 0 ]]; then
+            fixed_asset_dir="${RUNNER_TEMP}/fixed-release-assets"
+            fixed_asset="${fixed_asset_dir}/${PROJECT_NAME}.jar"
+            mkdir -p "${fixed_asset_dir}"
+            cp "${jar_assets[0]}" "${fixed_asset}"
+            assets+=("${fixed_asset}")
           fi
 
           if [[ -n "${PREVIOUS_TAG}" ]]; then
