@@ -270,7 +270,14 @@ jobs:
             fixed_asset="${fixed_asset_dir}/${PROJECT_NAME}.jar"
             mkdir -p "${fixed_asset_dir}"
             cp "${jar_assets[0]}" "${fixed_asset}"
-            assets+=("${fixed_asset}")
+            release_assets=()
+            for asset in "${assets[@]}"; do
+              if [[ "${asset}" != *.jar ]]; then
+                release_assets+=("${asset}")
+              fi
+            done
+            release_assets+=("${fixed_asset}")
+            assets=("${release_assets[@]}")
           fi
 
           if [[ -n "${PREVIOUS_TAG}" ]]; then
