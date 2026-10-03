@@ -84,7 +84,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: namespace-profile-noltox-fr
     timeout-minutes: 20
     concurrency:
       group: hcplugins-build-${{ github.repository }}-${{ github.ref }}
