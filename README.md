@@ -1,5 +1,8 @@
 # HCPlugins-actions
 
+**CI :** sources/ressources/build seulement ; docs seules sans runner. Pour les exceptions,
+voir [la politique CI et les marqueurs de skip](https://github.com/HeavenCube/HCPlugins-actions/blob/main/docs/CI_COSTS.md).
+
 CI/CD partagé pour les repositories `HCPlugins-*` de HeavenCube.
 
 Le but est de garder chaque plugin indépendant tout en centralisant Java 25, Gradle, cache,
@@ -14,7 +17,28 @@ name: Build
 on:
   push:
     branches: [main]
+    paths:
+      - '**/src/**'
+      - '**/*.gradle'
+      - '**/*.gradle.kts'
+      - '**/gradle.properties'
+      - 'gradle/**'
+      - 'gradlew'
+      - 'gradlew.bat'
+      - '.github/workflows/**'
+      - '.github/actions/**'
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - '**/src/**'
+      - '**/*.gradle'
+      - '**/*.gradle.kts'
+      - '**/gradle.properties'
+      - 'gradle/**'
+      - 'gradlew'
+      - 'gradlew.bat'
+      - '.github/workflows/**'
+      - '.github/actions/**'
   workflow_dispatch:
 
 permissions:
@@ -135,6 +159,18 @@ name: Release resource pack
 on:
   push:
     branches: [main]
+    paths:
+      - 'assets/**'
+      - 'pack.mcmeta'
+      - 'tools/**'
+      - '.github/workflows/**'
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'assets/**'
+      - 'pack.mcmeta'
+      - 'tools/**'
+      - '.github/workflows/**'
   workflow_dispatch:
 
 permissions:
@@ -145,12 +181,32 @@ jobs:
     uses: HeavenCube/HCPlugins-actions/.github/workflows/resource-pack-release.yml@main
     with:
       pack-name: HCPack-CustomAssets
+      validation-command: python3 tools/validate_pack.py
 ```
 
 Ce workflow vérifie `pack.mcmeta`, crée un ZIP dont la racine contient seulement
 `pack.mcmeta` et `assets/`, puis publie une release `vN` avec le titre
 `AAAA.MM.JJ-bN` et les commits depuis la release précédente. Les exécutions
 sur une même branche sont sérialisées. Il ne nécessite ni Gradle ni Java.
+La commande facultative `validation-command` appartient au consommateur ; la supprimer
+si celui-ci ne possède pas cet outil. Avec cette commande, une PR prête lance uniquement
+la validation, dans le même job qui valide puis publie sur main.
+
+## Éviter les exécutions inutiles
+
+Les filtres `paths` doivent être définis dans **chaque caller**, comme dans les exemples :
+les workflows réutilisables ne peuvent pas filtrer les fichiers à sa place. La documentation,
+les instructions IA et Dependabot seul ne déclenchent plus de compilation automatique.
+
+- PR en brouillon : aucun runner ; prête pour revue : build/tests sans artifact uploadé.
+- Anciennes validations d'une même PR annulables ; main conserve le verrou de release sans annulation.
+- Pack : validation et release dans un seul job Namespace, sans second checkout/runner.
+- `workflow_dispatch` conserve la possibilité de reconstruire volontairement.
+- Commit docs seul : préférer `docs: clarify installation [skip ci]`, reconnu nativement par GitHub.
+- Alias `[ci-skip]` : dernier commit d'un push ou titre d'une PR ; évalué avant allocation du runner.
+
+La [politique CI](docs/CI_COSTS.md) précise les limites (diff global de PR, checks obligatoires),
+les règles pour les IA et les validations. Aucun test métier n'est retiré pour économiser du temps.
 
 ## Principes
 

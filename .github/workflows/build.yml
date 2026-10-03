@@ -84,11 +84,16 @@ permissions:
 
 jobs:
   build:
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' ||
+          ((github.event_name != 'push' || !contains(github.event.head_commit.message, '[ci-skip]')) &&
+           (github.event_name != 'pull_request' ||
+            (!github.event.pull_request.draft && !contains(github.event.pull_request.title, '[ci-skip]')))) }}
     runs-on: namespace-profile-noltox-fr
     timeout-minutes: 20
     concurrency:
       group: hcplugins-build-${{ github.repository }}-${{ github.ref }}
-      cancel-in-progress: false
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     outputs:
       release-version: ${{ steps.release-version.outputs.version }}
       release-tag: ${{ steps.release-version.outputs.tag }}
@@ -97,7 +102,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
+          fetch-depth: ${{ github.event_name == 'pull_request' && 1 || 0 }}
 
       - name: Checkout Core main
         if: ${{ inputs.core-source }}
@@ -194,7 +199,7 @@ jobs:
           ./gradlew ${GRADLE_TASK} ${GRADLE_ARGUMENTS} "${version_arguments[@]}"
 
       - name: Resolve artifact name
-        if: ${{ inputs.artifact-path != '' }}
+        if: ${{ inputs.artifact-path != '' && github.event_name != 'pull_request' }}
         id: artifact
         shell: bash
         env:
@@ -215,7 +220,7 @@ jobs:
           echo "name=${name}" >> "${GITHUB_OUTPUT}"
 
       - name: Upload artifact
-        if: ${{ inputs.artifact-path != '' }}
+        if: ${{ inputs.artifact-path != '' && github.event_name != 'pull_request' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ steps.artifact.outputs.name }}

@@ -13,7 +13,8 @@ L'architecture des plugins et la création d'un dépôt sont dans
 | --- | --- |
 | [.github/workflows/build.yml](../.github/workflows/build.yml) | Workflow réutilisable Java/Gradle, sources composites, artifacts et releases |
 | [.github/actions/setup-gradle/action.yml](../.github/actions/setup-gradle/action.yml) | JDK/cache pour jobs personnalisés, clé facultative passée en input |
-| [.github/workflows/resource-pack-release.yml](../.github/workflows/resource-pack-release.yml) | ZIP de pack sans Gradle/Java et release numérique |
+| [.github/workflows/resource-pack-release.yml](../.github/workflows/resource-pack-release.yml) | Validation optionnelle, ZIP et release dans un job ; PR = validation seule |
+| [CI_COSTS.md](CI_COSTS.md) | Déclencheurs utiles, marqueurs de skip et économie de runners |
 | [.github/dependabot.yml](../.github/dependabot.yml) | Mise à jour des actions |
 | [templates/plugin/LICENSE](../templates/plugin/LICENSE) | Licence à copier pour un nouveau plugin |
 
@@ -34,14 +35,21 @@ prétendre que le GITHUB_TOKEN d'un consommateur peut lire tous les autres dép�
 Sur push/workflow_dispatch de la branche configurée, `create-release` alloue max des releases
 numériques + 1 selon préfixe. `-Pversion=AAAA.MM.JJ-bN` et `-PbuildDate=AAAA.MM.JJ` (UTC) vont à
 Gradle. Build puis artifact, release vN et JAR ; notes de commits depuis release précédente.
-PR et autres branches ne publient pas. Concurrency par repository/ref, cancel-in-progress false :
-préserver ce verrou et le séquencement. Ne pas introduire un second workflow release:published
+PR et autres branches ne publient pas. Concurrency par repository/ref, sans annulation sur main :
+préserver ce verrou et le séquencement. Les validations de PR restent annulables.
+Ne pas introduire un second workflow release:published
 pour prolonger implicitement une release générée avec GITHUB_TOKEN.
 
 Les consumers emploient @main : toute modification compatible les affecte dès leur prochaine
 exécution. Les actions tierces du workflow sont épinglées au SHA. Contrat d'input cassé : auditer
-et coordonner les callers, sans migration implicite vers @v1. Un push documentaire sur main
-publie aussi une release avec les callers actuels : aucune exclusion de documentation n'existe.
+et coordonner les callers, sans migration implicite vers @v1. Les filtres de chemins chez les
+callers empêchent les builds documentaires ; [CI_COSTS.md](CI_COSTS.md) définit les cas et limites.
+
+PR : brouillons ignorés, exécution précédente annulable, checkout superficiel et aucun artifact
+uploadé. Main : build/release sérialisés sans annulation. Tests et tâches Gradle restent inchangés.
+Les décisions de skip sont évaluées avant allocation du runner Namespace, sans job de filtrage.
+Le pack exécute validation-command avant résolution du numéro, ZIP et release dans le même job.
+Un échec de validation arrête la publication ; une PR n'exécute que cette validation.
 
 ## Cache et sécurité
 
