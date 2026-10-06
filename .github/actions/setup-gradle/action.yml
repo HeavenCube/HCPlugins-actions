@@ -13,6 +13,10 @@ inputs:
   cache-encryption-key:
     description: Optional AES key for persisting the Gradle configuration cache between runs.
     required: false
+  protect-private-source:
+    description: Keep only downloaded dependencies and wrapper distributions in the public Gradle User Home cache.
+    required: false
+    default: "false"
 
 runs:
   using: composite
@@ -27,6 +31,10 @@ runs:
       uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
       with:
         cache-encryption-key: ${{ inputs.cache-encryption-key }}
+        gradle-home-cache-includes: |
+          ${{ inputs.protect-private-source == 'true' && 'caches/modules-2' || 'caches' }}
+          notifications
+        gradle-home-cache-excludes: ${{ inputs.protect-private-source == 'true' && 'caches/build-cache-*' || '' }}
 
     - name: Check configuration cache eligibility
       id: configuration-cache

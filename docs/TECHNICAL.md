@@ -20,16 +20,23 @@ L'architecture des plugins et la création d'un dépôt sont dans
 | [templates/plugin/LICENSE](../templates/plugin/LICENSE) | Licence à copier pour un nouveau plugin |
 
 Ce dépôt ne possède ni versions Paper, ni dépendances métier, ni layout Gradle des consommateurs.
-Les sept dépôts plugin sont Core et ses six consommateurs : Glowing, ItemFrame, JoinMessage,
-HuskHomesGUI, PlaceholdersExtra, AdvancementsRedirect. Le pack n'est pas un plugin.
+Les huit dépôts plugin sont Core et ses sept consommateurs : Glowing, ItemFrame, JoinMessage,
+HuskHomesGUI, PlaceholdersExtra, AdvancementsRedirect et TranslationKey. Le pack n'est pas un plugin.
 
 ## Build et sources
 
 Checkout du consommateur, clone Core main si `core-source`, puis autres builds publics demandés
 par `source-repositories`, JDK (25 par défaut) et setup-gradle. Les sources sont dans `.hcplugins/` ;
-le consommateur choisit les substitutions Gradle. Aucune publication Maven ni token de lecture
-de sources publiques. Un dépôt source privé demanderait un accès authentifié distinct : ne pas
-prétendre que le GITHUB_TOKEN d'un consommateur peut lire tous les autres dépôts privés.
+le consommateur choisit les substitutions Gradle. Core est privé : HCPLUGINS_CORE_READ_TOKEN,
+limité à Contents read sur Core, authentifie uniquement son checkout avec persist-credentials false.
+Le secret est facultatif dans le contrat, obligatoire lorsque core-source est activé. Un contrôle
+avant checkout produit une erreur claire s'il manque. Le GITHUB_TOKEN du caller ne lit pas Core.
+Les autres sources restent publiques ; aucune publication Maven n'est ajoutée.
+
+Les PR externes utilisant Core sont ignorées au niveau job, sans runner. Les PR internes et
+Dependabot gardent leurs tests, avec le secret de lecture ; Dependabot doit posséder un secret
+distinct du même nom. Ne pas basculer vers pull_request_target pour exécuter le code d'un fork
+avec le token. La revue mainteneur précède toute validation ayant accès aux sources privées.
 
 ## Version et release
 
@@ -46,7 +53,7 @@ exécution. Les actions tierces du workflow sont épinglées au SHA. Contrat d'i
 et coordonner les callers, sans migration implicite vers @v1. Les filtres de chemins chez les
 callers empêchent les builds documentaires ; [CI_COSTS.md](CI_COSTS.md) définit les cas et limites.
 
-PR : brouillons ignorés, exécution précédente annulable, checkout superficiel et aucun artifact
+PR autorisées : brouillons ignorés, exécution précédente annulable, checkout superficiel et aucun artifact
 uploadé. Main : build/release sérialisés sans annulation. Tests et tâches Gradle restent inchangés.
 Les décisions de skip sont évaluées avant allocation du runner GitHub hébergé, sans job de filtrage.
 Le pack exécute validation-command avant résolution du numéro, ZIP et release dans le même job.
@@ -56,6 +63,11 @@ Un échec de validation arrête la publication ; une PR n'exécute que cette val
 
 Le workflow standard appelle l'action composite setup-gradle, également disponible pour les jobs
 personnalisés. gradle/actions/setup-gradle gère le Gradle User Home ; setup-java n'ajoute pas de cache.
+protect-private-source=true limite les jobs publics aux dépendances téléchargées (caches/modules-2)
+et au wrapper. Les sorties du build cache et les scripts compilés sont exclus des caches non chiffrés.
+Le workflow standard active cette politique pour core-source dans un caller public ; les jobs
+privés gardent leur cache de compilation. Purger les anciens caches des callers publics lors de
+l'activation : une nouvelle exclusion ne retire pas les données déjà sauvegardées.
 La clé facultative GRADLE_ENCRYPTION_KEY arrive via secrets: inherit et est exportée pour le chiffrement
 natif Gradle. actions/cache persiste uniquement `.gradle/configuration-cache`, pour les wrappers
 stables Gradle 9.8 ou plus récents ; aucun cache du Gradle User Home n'est dupliqué.
@@ -64,7 +76,7 @@ commit. Le préfixe de restauration autorise un commit différent avec les même
 Gradle reste responsable de l'invalidation de ses empreintes. Une rotation de la clé AES exige de
 supprimer les caches `hcplugins-configuration-v1-*` avant de restaurer des données devenues indéchiffrables.
 La clé doit être accessible au caller. GitHub Free n'autorise pas les secrets d'organisation pour
-dépôts privés ; secret local possible. Sans clé/fork/Dependabot, build continue sans cache de
+dépôts privés ; définir la clé localement dans Core. Sans clé, build continue sans cache de
 configuration persistant. Chaque nouvelle valeur de version peut invalider ce cache.
 
 Contents write requis pour release ; ne pas réclamer packages write devenu inutile. Ne pas logger
@@ -84,3 +96,6 @@ wrapper ancien/preview, puis lancer deux fois `verify-gradle-cache.yml` sur les 
 `expect-reuse=false` pour alimenter le cache, puis `true` pour exiger la réutilisation native Gradle.
 Le secret doit être accessible à HCPlugins-actions pour ces essais. Une restauration Actions seule
 ne prouve pas que Gradle réutilise la configuration ; vérifier aussi son message explicite.
+Le workflow nécessite aussi le token Core. all-plugins=true compile Core et ses sept consommateurs
+sans artifacts/releases ; le défaut reste TranslationKey. Deux jobs au maximum, concurrence séparée
+par projet, et checkout PlaceholdersExtra uniquement pour Glowing/TranslationKey.

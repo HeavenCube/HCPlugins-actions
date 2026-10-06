@@ -54,20 +54,24 @@ jobs:
     secrets: inherit
 ```
 
-Les pull requests et branches non configurées font uniquement un build.
+Les pull requests autorisées et branches non configurées font uniquement un build.
+Les PR de forks utilisant Core privé sont ignorées avant allocation du runner ; leur validation
+nécessite une revue par un mainteneur dans un contexte autorisé.
 
 Le cache Gradle des dépendances et des sorties de compilation fonctionne sans secret. Pour
 sauvegarder aussi le cache de configuration entre les exécutions, définir une seule fois le secret
 d'organisation `GRADLE_ENCRYPTION_KEY` avec accès aux repositories des plugins, puis conserver
 `secrets: inherit` dans leurs workflows. Sa valeur est une clé AES encodée en base64, générable
 avec `openssl rand -base64 16`. Ce secret est facultatif : les builds continuent de fonctionner
-sans lui, notamment pour les pull requests provenant de forks. Il doit être accessible aux
+sans lui. Il doit être accessible aux
 repositories qui appellent le workflow. Le workflow manuel de vérification décrit ci-dessous
 nécessite aussi cet accès dans `HCPlugins-actions`.
 
 L'action composite `setup-gradle` gère les deux répertoires sans chevauchement :
 
-- `gradle/actions/setup-gradle` sauvegarde les dépendances et sorties de compilation dans le Gradle User Home.
+- `gradle/actions/setup-gradle` sauvegarde le Gradle User Home. Les jobs publics compilant Core privé
+  utilisent une liste limitée aux dépendances téléchargées et distributions du wrapper ; les sorties
+  de compilation et scripts compilés ne sont pas sauvegardés dans les caches publics.
 - `actions/cache` sauvegarde uniquement `.gradle/configuration-cache`, chiffré par Gradle avec la clé fournie.
   Cette persistance est activée pour les wrappers Gradle stables **9.8 ou plus récents**.
   Sa clé de cache distingue OS, architecture, JDK, fichiers Gradle des builds composites et commit.
@@ -81,8 +85,9 @@ pour ces builds ; la clé profite surtout aux exécutions répétées avec les m
 
 Pour vérifier la persistance entre deux runners, lancer manuellement
 `Verify Gradle Configuration Cache` dans les Actions de ce dépôt : d'abord avec `expect-reuse=false`,
-puis, sans changer les sources, avec `expect-reuse=true`. Ce workflow compile TranslationKey avec
-Core et PlaceholdersExtra via leurs builds composites, exécute les tests et exige au second passage
+puis, sans changer les sources, avec `expect-reuse=true`. Par défaut, ce workflow compile TranslationKey avec
+Core et PlaceholdersExtra via leurs builds composites. `all-plugins=true` vérifie Core et ses sept
+consommateurs, avec au plus deux jobs simultanés. Il exécute les tests et exige au second passage
 `Reusing configuration cache.`. Il ne publie aucun artifact ni release et n'a aucun déclencheur automatique.
 
 Chaque build réussi de `main` crée automatiquement une nouvelle release :
@@ -139,9 +144,20 @@ jobs:
     secrets: inherit
 ```
 
-Le workflow clone la branche publique `main` de Core dans `.hcplugins/HCPlugins-Core` avant le
-build. Aucun secret n'est nécessaire. En local, les deux dépôts peuvent rester côte à côte. La
-configuration Gradle et Paper est détaillée dans le [modèle de consommateur](docs/consumer-template.md).
+Le workflow clone la branche `main` de Core privé dans `.hcplugins/HCPlugins-Core` avant le build.
+Définir `HCPLUGINS_CORE_READ_TOKEN` avec `Contents: read` sur ce seul dépôt, accessible aux sept
+consommateurs et à HCPlugins-actions. Le fournir également comme secret Dependabot pour ses PR ;
+`secrets: inherit` reste inchangé. Une clé absente produit une erreur explicite avant le checkout.
+En local, les clones restent côte à côte, avec un compte GitHub autorisé à lire Core.
+La configuration Gradle et Paper est détaillée dans le [modèle de consommateur](docs/consumer-template.md).
+
+Sur GitHub Free, Core privé doit posséder son propre secret de dépôt `GRADLE_ENCRYPTION_KEY`,
+les secrets d'organisation n'étant pas disponibles pour les dépôts privés. Ses releases et le lien
+`releases/latest/download/HCCore.jar` nécessitent désormais une authentification.
+
+Lors du passage en privé, purger les anciens caches Gradle des consommateurs publics et du workflow
+de vérification : changer la politique de sauvegarde ne supprime pas les anciennes classes déjà
+publiées dans ces caches. Aucun JAR serveur Core ne doit être attaché à une release publique.
 
 ## Composite action
 
@@ -152,6 +168,7 @@ steps:
     with:
       java-version: "25"
       cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+      protect-private-source: "true" # Pour un job public compilant des sources privées.
   - run: ./gradlew build
 ```
 
@@ -232,6 +249,6 @@ Pour un nouveau plugin : [guide Core](https://github.com/HeavenCube/HCPlugins-Co
 
 - permissions minimales côté repository consommateur ;
 - actions tierces épinglées sur SHA ;
-- aucun secret requis pour les PR ;
+- PR externes utilisant Core privé validées par un mainteneur après revue ;
 - aucune logique métier Minecraft ici ;
 - chaque plugin garde son propre Gradle et ses versions de dépendances.

@@ -68,6 +68,9 @@ on:
         default: ""
         type: string
     secrets:
+      HCPLUGINS_CORE_READ_TOKEN:
+        description: Read-only access to the private HCPlugins-Core repository when core-source is enabled.
+        required: false
       GRADLE_ENCRYPTION_KEY:
         description: Optional AES key for persisting the Gradle configuration cache between runs.
         required: false
@@ -85,10 +88,12 @@ permissions:
 jobs:
   build:
     if: >-
-      ${{ github.event_name == 'workflow_dispatch' ||
-          ((github.event_name != 'push' || !contains(github.event.head_commit.message, '[ci-skip]')) &&
-           (github.event_name != 'pull_request' ||
-            (!github.event.pull_request.draft && !contains(github.event.pull_request.title, '[ci-skip]')))) }}
+      ${{ !(inputs.core-source && github.event_name == 'pull_request' &&
+            github.event.pull_request.head.repo.full_name != github.repository) &&
+          (github.event_name == 'workflow_dispatch' ||
+           ((github.event_name != 'push' || !contains(github.event.head_commit.message, '[ci-skip]')) &&
+            (github.event_name != 'pull_request' ||
+             (!github.event.pull_request.draft && !contains(github.event.pull_request.title, '[ci-skip]'))))) }}
     runs-on: ubuntu-26.04
     timeout-minutes: 20
     concurrency:
@@ -99,6 +104,18 @@ jobs:
       release-tag: ${{ steps.release-version.outputs.tag }}
 
     steps:
+      - name: Check Core read token
+        if: ${{ inputs.core-source }}
+        shell: bash
+        env:
+          CORE_READ_TOKEN: ${{ secrets.HCPLUGINS_CORE_READ_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${CORE_READ_TOKEN}" ]]; then
+            echo "::error::HCPLUGINS_CORE_READ_TOKEN is required to read private Core. Configure it as an Actions secret and, for Dependabot PRs, a Dependabot secret."
+            exit 1
+          fi
+
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -109,6 +126,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: HeavenCube/HCPlugins-Core
+          token: ${{ secrets.HCPLUGINS_CORE_READ_TOKEN }}
           ref: main
           path: .hcplugins/HCPlugins-Core
           persist-credentials: false
@@ -139,6 +157,7 @@ jobs:
         with:
           java-version: ${{ inputs.java-version }}
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+          protect-private-source: ${{ inputs.core-source && !github.event.repository.private }}
 
       - name: Resolve release version
         id: release-version

@@ -179,8 +179,15 @@ jobs:
     secrets: inherit
 ```
 
-The workflow checks out the public `HCPlugins-Core` repository directly. No secret is required,
-including for pull requests.
+The workflow checks out private `HCPlugins-Core` using the read-only `HCPLUGINS_CORE_READ_TOKEN` secret.
+Grant it Contents read on Core only and make it available to this caller through `secrets: inherit`.
+Dependabot needs a Dependabot secret of the same name. Fork pull requests requiring Core are skipped
+before runner allocation and require maintainer review before a trusted build. Local developers need
+authenticated access to the sibling Core clone. Never commit tokens or execute unreviewed fork code
+with the private-source credential.
+
+Public callers using Core retain dependency/wrapper caches and encrypted configuration caching;
+compiled Core classes and build scripts must not be persisted in unencrypted public caches.
 
 For another public sibling source build, declare its repository in the caller:
 

@@ -8,6 +8,11 @@ on:
         required: false
         default: false
         type: boolean
+      all-plugins:
+        description: Build Core and all seven consumers without publishing artifacts or releases.
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -16,26 +21,46 @@ jobs:
   verify:
     runs-on: ubuntu-26.04
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        project: ${{ fromJSON(inputs.all-plugins && '["Core","Glowing","ItemFrame","JoinMessage","PlaceholdersExtra","HuskHomesGUI","AdvancementsRedirect","TranslationKey"]' || '["TranslationKey"]') }}
     concurrency:
-      group: hcplugins-configuration-cache-verification
+      group: hcplugins-configuration-cache-verification-${{ matrix.project }}
       cancel-in-progress: false
     steps:
-      - name: Checkout TranslationKey main
+      - name: Check Core read token
+        shell: bash
+        env:
+          CORE_READ_TOKEN: ${{ secrets.HCPLUGINS_CORE_READ_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${CORE_READ_TOKEN}" ]]; then
+            echo "::error::HCPLUGINS_CORE_READ_TOKEN is required to verify private Core builds."
+            exit 1
+          fi
+
+      - name: Checkout project main
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          repository: HeavenCube/HCPlugins-TranslationKey
+          repository: HeavenCube/HCPlugins-${{ matrix.project }}
+          token: ${{ matrix.project == 'Core' && secrets.HCPLUGINS_CORE_READ_TOKEN || github.token }}
           ref: main
           persist-credentials: false
 
       - name: Checkout Core main
+        if: ${{ matrix.project != 'Core' }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: HeavenCube/HCPlugins-Core
+          token: ${{ secrets.HCPLUGINS_CORE_READ_TOKEN }}
           ref: main
           path: .hcplugins/HCPlugins-Core
           persist-credentials: false
 
       - name: Checkout PlaceholdersExtra main
+        if: ${{ matrix.project == 'Glowing' || matrix.project == 'TranslationKey' }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: HeavenCube/HCPlugins-PlaceholdersExtra
@@ -47,6 +72,7 @@ jobs:
         uses: HeavenCube/HCPlugins-actions/.github/actions/setup-gradle@main
         with:
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+          protect-private-source: "true"
 
       - name: Build and verify configuration cache
         shell: bash

@@ -99,8 +99,9 @@ est gratuite. Dans un dépôt privé, le même label fournit 2 vCPU et 8 Go de R
 utilisation dépend du quota du compte et de la facturation GitHub Actions.
 Source : [GitHub — runners hébergés](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
 
-L'action composite setup-gradle conserve le cache de dépendances et de compilation géré par
-gradle/actions/setup-gradle. GRADLE_ENCRYPTION_KEY reste facultative ; avec un wrapper stable
+L'action composite setup-gradle conserve le cache géré par gradle/actions/setup-gradle. Les jobs
+publics utilisant Core privé ne persistent que les dépendances téléchargées et le wrapper ; les
+sorties de compilation restent cachées uniquement dans les jobs privés. GRADLE_ENCRYPTION_KEY reste facultative ; avec un wrapper stable
 Gradle 9.8 ou plus récent, elle active aussi un cache actions/cache limité à
 `.gradle/configuration-cache`. Aucun deuxième cache du même Gradle User Home n'est ajouté.
 Les releases changent de version et peuvent invalider cette configuration ; ne pas confondre
@@ -109,6 +110,8 @@ persistance et réutilisation effective. Mesurer les durées réelles avant d'en
 `verify-gradle-cache.yml` n'est exécuté que sur demande manuelle pour vérifier cette persistance :
 deux builds composites identiques, le second exigeant la réutilisation de la configuration.
 Il ne publie ni artifact ni release ; aucun build supplémentaire n'est ajouté aux pushes/PR.
+all-plugins=true ajoute une validation manuelle des huit projets, limitée à deux jobs simultanés.
+Les PR de forks utilisant Core privé sont ignorées avant allocation ; validation mainteneur après revue.
 
 ## Modifier et publier les workflows
 

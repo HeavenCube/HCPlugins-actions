@@ -47,7 +47,10 @@ Do not add Minecraft plugin business logic, Paper code or project-specific hacks
 - Release callers need `contents: write`.
 - Pin third-party actions to immutable full commit SHAs.
 - Do not print secrets or credentials.
-- Pull-request builds must not require repository secrets.
+- Fork pull requests using private Core are skipped before runner allocation. Maintainer and
+  Dependabot builds need the read-only Core secret; never run unreviewed fork code with this secret.
+- Public jobs compiling private Core cache downloaded dependencies and the encrypted configuration
+  only; do not persist its compiled classes or build scripts in an unencrypted public cache.
 
 ## Compatibility
 
