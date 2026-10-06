@@ -34,7 +34,14 @@ runs:
         gradle-home-cache-includes: |
           ${{ inputs.protect-private-source == 'true' && 'caches/modules-2' || 'caches' }}
           notifications
-        gradle-home-cache-excludes: ${{ inputs.protect-private-source == 'true' && 'caches/build-cache-*' || '' }}
+        # Enhanced caching also extracts these groups independently of the include list.
+        gradle-home-cache-excludes: |
+          ${{ inputs.protect-private-source == 'true' && 'caches/build-cache-*' || '' }}
+          ${{ inputs.protect-private-source == 'true' && 'caches/*/kotlin-dsl/**' || '' }}
+          ${{ inputs.protect-private-source == 'true' && 'caches/*/groovy-dsl/**' || '' }}
+          ${{ inputs.protect-private-source == 'true' && 'caches/*/transforms/**' || '' }}
+          ${{ inputs.protect-private-source == 'true' && 'caches/transforms-*/**' || '' }}
+          ${{ inputs.protect-private-source == 'true' && 'caches/jars-*/**' || '' }}
 
     - name: Check configuration cache eligibility
       id: configuration-cache
