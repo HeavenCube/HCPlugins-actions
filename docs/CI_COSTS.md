@@ -100,10 +100,13 @@ utilisation dépend du quota du compte et de la facturation GitHub Actions.
 Source : [GitHub — runners hébergés](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
 
 L'action composite setup-gradle conserve le cache géré par gradle/actions/setup-gradle. Les jobs
-publics utilisant Core privé ne persistent que les dépendances téléchargées et le wrapper ; les
-sorties de compilation restent cachées uniquement dans les jobs privés. GRADLE_ENCRYPTION_KEY reste facultative ; avec un wrapper stable
-Gradle 9.8 ou plus récent, elle active aussi un cache actions/cache limité à
-`.gradle/configuration-cache`. Aucun deuxième cache du même Gradle User Home n'est ajouté.
+publics utilisant Core privé ne persistent en clair que les dépendances téléchargées et le wrapper ;
+les sorties Java du build cache restent cachées uniquement dans les jobs privés.
+GRADLE_ENCRYPTION_KEY reste facultative ; avec un wrapper stable Gradle 9.8 ou plus récent,
+elle active aussi un cache actions/cache de `.gradle/configuration-cache` et, pour les jobs publics
+compilant des sources privées, des scripts Gradle nécessaires à sa réutilisation. Ces scripts sont
+archivés, chiffrés et authentifiés par `gradle-state-cache` ; ils restent exclus du cache non chiffré
+de setup-gradle. Aucun deuxième cache des mêmes fichiers n'est ajouté.
 Les releases changent de version et peuvent invalider cette configuration ; ne pas confondre
 persistance et réutilisation effective. Mesurer les durées réelles avant d'envisager un runner payant.
 

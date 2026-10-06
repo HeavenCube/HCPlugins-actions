@@ -49,8 +49,11 @@ Do not add Minecraft plugin business logic, Paper code or project-specific hacks
 - Do not print secrets or credentials.
 - Fork pull requests using private Core are skipped before runner allocation. Maintainer and
   Dependabot builds need the read-only Core secret; never run unreviewed fork code with this secret.
-- Public jobs compiling private Core cache downloaded dependencies and the encrypted configuration
-  only; do not persist its compiled classes or build scripts in an unencrypted public cache.
+- Public jobs compiling private Core cache downloaded dependencies, the encrypted configuration
+  and authenticated encrypted compiled Gradle scripts; never persist private compiled state in plaintext.
+- `gradle-state-cache` is the only owner of that encrypted script archive. Preserve authentication
+  before extraction, repository-bound key derivation and post-hook ordering (encrypt before upload).
+  Test it with `node --test .github/actions/gradle-state-cache/state.test.mjs` after changes.
 
 ## Compatibility
 

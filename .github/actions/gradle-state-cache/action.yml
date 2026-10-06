@@ -1,0 +1,11 @@
+name: Protect compiled Gradle state
+description: Restore and save authenticated encrypted Gradle scripts needed by the configuration cache.
+inputs:
+  encryption-key:
+    description: Existing base64 Gradle AES key; never included in cache names or logs.
+    required: true
+runs:
+  using: node24
+  main: restore.mjs
+  post: save.mjs
+  post-if: success()

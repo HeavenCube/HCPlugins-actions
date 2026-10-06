@@ -67,7 +67,16 @@ runs:
       if: ${{ steps.configuration-cache.outputs.enabled == 'true' }}
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
-        path: .gradle/configuration-cache
-        key: hcplugins-configuration-v1-${{ runner.os }}-${{ runner.arch }}-${{ inputs.distribution }}-${{ inputs.java-version }}-${{ hashFiles('**/*.gradle*', '**/gradle.properties', '**/gradle-wrapper.properties', '**/*.versions.toml', '.hcplugins/**/*.gradle*', '.hcplugins/**/gradle.properties', '.hcplugins/**/gradle-wrapper.properties', '.hcplugins/**/*.versions.toml') }}-${{ github.sha }}
+        path: |
+          .gradle/configuration-cache
+          .gradle/hcplugins-compiled-state.bin
+        key: hcplugins-configuration-v2-${{ runner.os }}-${{ runner.arch }}-${{ inputs.distribution }}-${{ inputs.java-version }}-${{ inputs.protect-private-source }}-${{ hashFiles('**/*.gradle*', '**/gradle.properties', '**/gradle-wrapper.properties', '**/*.versions.toml', '.hcplugins/**/*.gradle*', '.hcplugins/**/gradle.properties', '.hcplugins/**/gradle-wrapper.properties', '.hcplugins/**/*.versions.toml') }}-${{ github.sha }}
         restore-keys: |
-          hcplugins-configuration-v1-${{ runner.os }}-${{ runner.arch }}-${{ inputs.distribution }}-${{ inputs.java-version }}-${{ hashFiles('**/*.gradle*', '**/gradle.properties', '**/gradle-wrapper.properties', '**/*.versions.toml', '.hcplugins/**/*.gradle*', '.hcplugins/**/gradle.properties', '.hcplugins/**/gradle-wrapper.properties', '.hcplugins/**/*.versions.toml') }}-
+          hcplugins-configuration-v2-${{ runner.os }}-${{ runner.arch }}-${{ inputs.distribution }}-${{ inputs.java-version }}-${{ inputs.protect-private-source }}-${{ hashFiles('**/*.gradle*', '**/gradle.properties', '**/gradle-wrapper.properties', '**/*.versions.toml', '.hcplugins/**/*.gradle*', '.hcplugins/**/gradle.properties', '.hcplugins/**/gradle-wrapper.properties', '.hcplugins/**/*.versions.toml') }}-
+
+    # Registered after actions/cache: its save hook encrypts before the cache upload hook.
+    - name: Protect compiled Gradle state
+      if: ${{ steps.configuration-cache.outputs.enabled == 'true' && inputs.protect-private-source == 'true' }}
+      uses: HeavenCube/HCPlugins-actions/.github/actions/gradle-state-cache@main
+      with:
+        encryption-key: ${{ inputs.cache-encryption-key }}

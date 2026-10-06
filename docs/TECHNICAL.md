@@ -13,6 +13,7 @@ L'architecture des plugins et la création d'un dépôt sont dans
 | --- | --- |
 | [.github/workflows/build.yml](../.github/workflows/build.yml) | Workflow réutilisable Java/Gradle, sources composites, artifacts et releases |
 | [.github/actions/setup-gradle/action.yml](../.github/actions/setup-gradle/action.yml) | JDK, cache du Gradle User Home et cache de configuration chiffré ; partagé avec les jobs personnalisés |
+| [.github/actions/gradle-state-cache/](../.github/actions/gradle-state-cache/) | Action Node 24 sans dépendance ; archive chiffrée des scripts compilés nécessaires au cache de configuration public |
 | [.github/workflows/resource-pack-release.yml](../.github/workflows/resource-pack-release.yml) | Validation optionnelle, ZIP et release dans un job ; PR = validation seule |
 | [.github/workflows/verify-gradle-cache.yml](../.github/workflows/verify-gradle-cache.yml) | Vérification manuelle du cache de configuration sur deux exécutions composites identiques ; aucune publication |
 | [CI_COSTS.md](CI_COSTS.md) | Déclencheurs utiles, marqueurs de skip et économie de runners |
@@ -69,15 +70,36 @@ Le workflow standard active cette politique pour core-source dans un caller publ
 privés gardent leur cache de compilation. Purger les anciens caches des callers publics lors de
 l'activation : une nouvelle exclusion ne retire pas les données déjà sauvegardées.
 La clé facultative GRADLE_ENCRYPTION_KEY arrive via secrets: inherit et est exportée pour le chiffrement
-natif Gradle. actions/cache persiste uniquement `.gradle/configuration-cache`, pour les wrappers
-stables Gradle 9.8 ou plus récents ; aucun cache du Gradle User Home n'est dupliqué.
-La clé du cache de projet comprend OS/architecture, JDK, fichiers Gradle des sources composites et
+natif Gradle. actions/cache persiste `.gradle/configuration-cache`, pour les wrappers
+stables Gradle 9.8 ou plus récents, et l'archive chiffrée décrite ci-dessous dans les jobs publics
+compilant des sources privées ; aucun fichier du Gradle User Home n'est dupliqué.
+La clé du cache de projet comprend OS/architecture, JDK, politique de confidentialité, fichiers Gradle des sources composites et
 commit. Le préfixe de restauration autorise un commit différent avec les mêmes entrées de build ;
 Gradle reste responsable de l'invalidation de ses empreintes. Une rotation de la clé AES exige de
-supprimer les caches `hcplugins-configuration-v1-*` avant de restaurer des données devenues indéchiffrables.
+supprimer les caches `hcplugins-configuration-v2-*` et les anciens `v1` encore présents avant de
+restaurer des données devenues indéchiffrables.
 La clé doit être accessible au caller. GitHub Free n'autorise pas les secrets d'organisation pour
 dépôts privés ; définir la clé localement dans Core. Sans clé, build continue sans cache de
 configuration persistant. Chaque nouvelle valeur de version peut invalider ce cache.
+
+### Scripts compilés des builds privés dans un job public
+
+Gradle ne peut pas réutiliser sa configuration si les scripts compilés référencés ont disparu du
+Gradle User Home. `gradle-state-cache` restaure donc exclusivement les répertoires `kotlin-dsl`,
+`groovy-dsl`, `transforms`, `generated-gradle-jars`, `jars-N` et `transforms-N` dans ce cas.
+Les dépendances `modules-2` et les sorties Java `build-cache-*` ne font pas partie de cette archive.
+
+L'archive compressée, limitée à 512 Mio, est protégée par AES-256-GCM. HKDF-SHA-256 dérive une clé
+distincte à partir de `GRADLE_ENCRYPTION_KEY`, avec un sel aléatoire et le repository comme contexte ;
+aucune nouvelle clé n'est nécessaire. L'authentification complète précède toute écriture en clair
+ou extraction. Les fichiers temporaires résident dans RUNNER_TEMP et sont supprimés, même en erreur.
+Une clé incorrecte ou une archive altérée fait échouer le job avec un diagnostic sans contenu privé.
+
+L'action est enregistrée après actions/cache : les hooks de fin s'exécutent en ordre inverse,
+donc le chiffrement précède la sauvegarde de `.gradle/hcplugins-compiled-state.bin`. Ne pas inverser
+ces étapes. Le helper est ignoré sans clé, avec un ancien wrapper ou pour un job privé qui conserve
+déjà ces fichiers dans son cache privé. Le test Node vérifie chiffrement, altération, isolation entre
+repositories, restauration, exclusions et nettoyage sans accéder à aucun vrai secret.
 
 Contents write requis pour release ; ne pas réclamer packages write devenu inutile. Ne pas logger
 secrets/credentials, ni intégrer une clé en YAML, ni créer des branches/releases juste pour tester
@@ -99,3 +121,8 @@ ne prouve pas que Gradle réutilise la configuration ; vérifier aussi son messa
 Le workflow nécessite aussi le token Core. all-plugins=true compile Core et ses sept consommateurs
 sans artifacts/releases ; le défaut reste TranslationKey. Deux jobs au maximum, concurrence séparée
 par projet, et checkout PlaceholdersExtra uniquement pour Glowing/TranslationKey.
+
+Après une modification de `gradle-state-cache`, exécuter aussi
+`node --test .github/actions/gradle-state-cache/state.test.mjs` puis contrôler dans les logs CI
+que son hook de chiffrement précède l'upload et qu'aucun groupe de scripts compilés n'est envoyé
+par le cache public non chiffré de setup-gradle.

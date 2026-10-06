@@ -71,14 +71,19 @@ L'action composite `setup-gradle` gère les deux répertoires sans chevauchement
 
 - `gradle/actions/setup-gradle` sauvegarde le Gradle User Home. Les jobs publics compilant Core privé
   utilisent une liste limitée aux dépendances téléchargées et distributions du wrapper ; les sorties
-  de compilation et scripts compilés ne sont pas sauvegardés dans les caches publics.
-- `actions/cache` sauvegarde uniquement `.gradle/configuration-cache`, chiffré par Gradle avec la clé fournie.
+  de compilation et scripts compilés sont exclus des caches non chiffrés.
+- `actions/cache` sauvegarde `.gradle/configuration-cache`, chiffré par Gradle avec la clé fournie.
+  Pour les jobs publics utilisant Core privé, il conserve aussi une archive chiffrée et authentifiée
+  des scripts Gradle et transformations nécessaires à la réutilisation de cette configuration.
+  L'action `gradle-state-cache` utilise la même clé AES, sans dépendance supplémentaire ; les sorties
+  Java du build cache restent exclues. Aucun répertoire n'est sauvegardé par les deux mécanismes.
   Cette persistance est activée pour les wrappers Gradle stables **9.8 ou plus récents**.
-  Sa clé de cache distingue OS, architecture, JDK, fichiers Gradle des builds composites et commit.
+  Sa clé de cache distingue OS, architecture, JDK, politique de confidentialité, fichiers Gradle des builds composites et commit.
   Un commit différent peut restaurer un cache compatible ; Gradle revalide ses propres entrées.
 
 Ne pas ajouter `setup-java cache: gradle` ou un autre cache du Gradle User Home. Lors d'une
-rotation de la clé AES, supprimer les caches `hcplugins-configuration-v1-*` avant le prochain build.
+rotation de la clé AES, supprimer les caches `hcplugins-configuration-v2-*` avant le prochain build
+(ainsi que les anciens `v1` encore présents).
 
 Comme chaque release reçoit une nouvelle valeur `-Pversion`, Gradle recalcule sa configuration
 pour ces builds ; la clé profite surtout aux exécutions répétées avec les mêmes paramètres.
