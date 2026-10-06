@@ -85,9 +85,14 @@ les tags vN ne changent pas. Les artifacts des builds main/manuels restent dispo
 
 ## Runner GitHub et cache
 
-Les deux workflows partagés utilisent le runner standard GitHub hébergé `ubuntu-24.04`
+Les deux workflows partagés utilisent le runner standard GitHub hébergé `ubuntu-26.04`
 en x64. Les plugins consommateurs l'utilisent automatiquement via `HCPlugins-actions@main`.
 Cette image fixe conserve l'architecture de l'outillage Java 25, Gradle, Bash et Python.
+
+Ubuntu 26.04 est disponible en production. GitHub prévoit de basculer `ubuntu-latest`
+vers cette image du 19 octobre au 19 novembre 2026 ; le label explicite permet de l'utiliser
+dès maintenant et de contrôler les futures mises à niveau du système.
+Source : [GitHub — passage d'ubuntu-latest à Ubuntu 26.04](https://github.com/actions/runner-images/issues/14748).
 
 Pour ces dépôts publics, ce runner dispose de 4 vCPU et 16 Go de RAM et son utilisation
 est gratuite. Dans un dépôt privé, le même label fournit 2 vCPU et 8 Go de RAM ; son
