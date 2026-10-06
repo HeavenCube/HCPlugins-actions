@@ -66,7 +66,7 @@ de zéro run pour les pushes exceptionnellement volumineux.
 
 ## Travail conservé et travail supprimé
 
-- Sept plugins : un seul job Namespace par validation nécessaire.
+- Plugins : un seul job GitHub Actions par validation nécessaire.
 - PR : build/tests conservés, aucun upload d'artifact Actions ni release.
 - Ancienne exécution d'une même PR annulée dès qu'une nouvelle validation démarre.
 - Main : pas d'annulation pendant un build/release ; verrou par dépôt/ref conservé.
@@ -83,28 +83,31 @@ de zéro run pour les pushes exceptionnellement volumineux.
 Le JAR de release reste à nom fixe ; sa version interne, le titre AAAA.MM.JJ-bN et
 les tags vN ne changent pas. Les artifacts des builds main/manuels restent disponibles.
 
-## Cache et réglages Namespace
+## Runner GitHub et cache
 
-Le runner reste namespace-profile-noltox-fr. Setup-gradle conserve son cache de dépendances
-et de compilation ; GRADLE_ENCRYPTION_KEY reste facultative pour persister le cache de
-configuration. Aucun deuxième cache du même Gradle User Home n'est ajouté.
+Les deux workflows partagés utilisent le runner standard GitHub hébergé `ubuntu-24.04`
+en x64. Les plugins consommateurs l'utilisent automatiquement via `HCPlugins-actions@main`.
+Cette image fixe conserve l'architecture de l'outillage Java 25, Gradle, Bash et Python.
 
-Namespace propose [des volumes de cache](https://namespace.so/docs/solutions/github-actions/caching).
-Leur configuration et le dimensionnement du profil relèvent du compte Namespace : comparer
-durée/coût mesurés avant de changer CPU, mémoire, image ou stockage. Les workflows ne
-modifient pas ces paramètres et aucune économie chiffrée n'est supposée.
+Pour ces dépôts publics, ce runner dispose de 4 vCPU et 16 Go de RAM et son utilisation
+est gratuite. Dans un dépôt privé, le même label fournit 2 vCPU et 8 Go de RAM ; son
+utilisation dépend du quota du compte et de la facturation GitHub Actions.
+Source : [GitHub — runners hébergés](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
+
+Setup-gradle conserve son cache de dépendances et de compilation ; GRADLE_ENCRYPTION_KEY
+reste facultative pour persister le cache de configuration. Aucun deuxième cache du même
+Gradle User Home n'est ajouté. Mesurer les durées réelles avant d'envisager un runner payant.
 
 ## Modifier et publier les workflows
 
 1. Inspecter le caller et le workflow partagé ; préserver tests, permissions, versioning
    et sérialisation des releases.
-2. Vérifier YAML/expressions avec actionlint, en déclarant le label Namespace comme runner
-   connu, puis git diff --check.
+2. Vérifier YAML/expressions avec actionlint, puis git diff --check.
 3. Vérifier les cas : documentation seule, Java/test/YAML/TOML, workflow, pack, PR en
    brouillon/prête, [skip ci], alias, PR concurrente, validation échouée et lancement manuel.
 4. Ne pas lancer une CI payante pour vérifier seulement la documentation.
 5. Publier HCPlugins-actions **avant** HCPack-CustomAssets lorsque validation-command est
    introduit : le caller @main ne doit pas utiliser un input encore absent du workflow distant.
-6. Un changement de runner n'est confirmé qu'après une exécution GitHub sur le profil réel.
+6. Un changement de runner n'est confirmé qu'après une exécution GitHub sur le runner choisi.
 
 Les templates de docs/consumer-template.md portent les mêmes filtres pour les futurs plugins.

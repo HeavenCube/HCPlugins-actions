@@ -47,7 +47,7 @@ callers empêchent les builds documentaires ; [CI_COSTS.md](CI_COSTS.md) défini
 
 PR : brouillons ignorés, exécution précédente annulable, checkout superficiel et aucun artifact
 uploadé. Main : build/release sérialisés sans annulation. Tests et tâches Gradle restent inchangés.
-Les décisions de skip sont évaluées avant allocation du runner Namespace, sans job de filtrage.
+Les décisions de skip sont évaluées avant allocation du runner GitHub hébergé, sans job de filtrage.
 Le pack exécute validation-command avant résolution du numéro, ZIP et release dans le même job.
 Un échec de validation arrête la publication ; une PR n'exécute que cette validation.
 

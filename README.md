@@ -200,7 +200,7 @@ les instructions IA et Dependabot seul ne déclenchent plus de compilation autom
 
 - PR en brouillon : aucun runner ; prête pour revue : build/tests sans artifact uploadé.
 - Anciennes validations d'une même PR annulables ; main conserve le verrou de release sans annulation.
-- Pack : validation et release dans un seul job Namespace, sans second checkout/runner.
+- Pack : validation et release dans un seul job GitHub Actions, sans second checkout/runner.
 - `workflow_dispatch` conserve la possibilité de reconstruire volontairement.
 - Commit docs seul : préférer `docs: clarify installation [skip ci]`, reconnu nativement par GitHub.
 - Alias `[ci-skip]` : dernier commit d'un push ou titre d'une PR ; évalué avant allocation du runner.

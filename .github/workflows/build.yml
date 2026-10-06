@@ -89,7 +89,7 @@ jobs:
           ((github.event_name != 'push' || !contains(github.event.head_commit.message, '[ci-skip]')) &&
            (github.event_name != 'pull_request' ||
             (!github.event.pull_request.draft && !contains(github.event.pull_request.title, '[ci-skip]')))) }}
-    runs-on: namespace-profile-noltox-fr
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     concurrency:
       group: hcplugins-build-${{ github.repository }}-${{ github.ref }}
