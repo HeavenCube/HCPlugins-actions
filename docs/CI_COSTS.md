@@ -99,9 +99,16 @@ est gratuite. Dans un dépôt privé, le même label fournit 2 vCPU et 8 Go de R
 utilisation dépend du quota du compte et de la facturation GitHub Actions.
 Source : [GitHub — runners hébergés](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
 
-Setup-gradle conserve son cache de dépendances et de compilation ; GRADLE_ENCRYPTION_KEY
-reste facultative pour persister le cache de configuration. Aucun deuxième cache du même
-Gradle User Home n'est ajouté. Mesurer les durées réelles avant d'envisager un runner payant.
+L'action composite setup-gradle conserve le cache de dépendances et de compilation géré par
+gradle/actions/setup-gradle. GRADLE_ENCRYPTION_KEY reste facultative ; avec un wrapper stable
+Gradle 9.8 ou plus récent, elle active aussi un cache actions/cache limité à
+`.gradle/configuration-cache`. Aucun deuxième cache du même Gradle User Home n'est ajouté.
+Les releases changent de version et peuvent invalider cette configuration ; ne pas confondre
+persistance et réutilisation effective. Mesurer les durées réelles avant d'envisager un runner payant.
+
+`verify-gradle-cache.yml` n'est exécuté que sur demande manuelle pour vérifier cette persistance :
+deux builds composites identiques, le second exigeant la réutilisation de la configuration.
+Il ne publie ni artifact ni release ; aucun build supplémentaire n'est ajouté aux pushes/PR.
 
 ## Modifier et publier les workflows
 

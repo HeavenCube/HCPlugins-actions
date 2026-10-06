@@ -12,8 +12,9 @@ L'architecture des plugins et la création d'un dépôt sont dans
 | Fichier | Responsabilité |
 | --- | --- |
 | [.github/workflows/build.yml](../.github/workflows/build.yml) | Workflow réutilisable Java/Gradle, sources composites, artifacts et releases |
-| [.github/actions/setup-gradle/action.yml](../.github/actions/setup-gradle/action.yml) | JDK/cache pour jobs personnalisés, clé facultative passée en input |
+| [.github/actions/setup-gradle/action.yml](../.github/actions/setup-gradle/action.yml) | JDK, cache du Gradle User Home et cache de configuration chiffré ; partagé avec les jobs personnalisés |
 | [.github/workflows/resource-pack-release.yml](../.github/workflows/resource-pack-release.yml) | Validation optionnelle, ZIP et release dans un job ; PR = validation seule |
+| [.github/workflows/verify-gradle-cache.yml](../.github/workflows/verify-gradle-cache.yml) | Vérification manuelle du cache de configuration sur deux exécutions composites identiques ; aucune publication |
 | [CI_COSTS.md](CI_COSTS.md) | Déclencheurs utiles, marqueurs de skip et économie de runners |
 | [.github/dependabot.yml](../.github/dependabot.yml) | Mise à jour des actions |
 | [templates/plugin/LICENSE](../templates/plugin/LICENSE) | Licence à copier pour un nouveau plugin |
@@ -53,8 +54,15 @@ Un échec de validation arrête la publication ; une PR n'exécute que cette val
 
 ## Cache et sécurité
 
-Setup-gradle gère déjà cache Gradle ; setup-java n'ajoute pas un deuxième cache. La clé facultative
-GRADLE_ENCRYPTION_KEY active la persistance du configuration cache et arrive via secrets: inherit.
+Le workflow standard appelle l'action composite setup-gradle, également disponible pour les jobs
+personnalisés. gradle/actions/setup-gradle gère le Gradle User Home ; setup-java n'ajoute pas de cache.
+La clé facultative GRADLE_ENCRYPTION_KEY arrive via secrets: inherit et est exportée pour le chiffrement
+natif Gradle. actions/cache persiste uniquement `.gradle/configuration-cache`, pour les wrappers
+stables Gradle 9.8 ou plus récents ; aucun cache du Gradle User Home n'est dupliqué.
+La clé du cache de projet comprend OS/architecture, JDK, fichiers Gradle des sources composites et
+commit. Le préfixe de restauration autorise un commit différent avec les mêmes entrées de build ;
+Gradle reste responsable de l'invalidation de ses empreintes. Une rotation de la clé AES exige de
+supprimer les caches `hcplugins-configuration-v1-*` avant de restaurer des données devenues indéchiffrables.
 La clé doit être accessible au caller. GitHub Free n'autorise pas les secrets d'organisation pour
 dépôts privés ; secret local possible. Sans clé/fork/Dependabot, build continue sans cache de
 configuration persistant. Chaque nouvelle valeur de version peut invalider ce cache.
@@ -70,3 +78,9 @@ permissions des callers affectés. Gradle reste validé par leur build. Une vali
 n'est pas une exécution GitHub Actions. Une modification documentaire ne nécessite pas de nouvelles
 compilations/release manuelles. Vérifier que le ZIP pack contient à sa racine uniquement pack.mcmeta
 et assets/ ; les guides et instructions du dépôt ne vont pas dans les assets serveur.
+
+Pour modifier la persistance du cache de configuration, tester l'éligibilité sans clé et avec un
+wrapper ancien/preview, puis lancer deux fois `verify-gradle-cache.yml` sur les mêmes sources :
+`expect-reuse=false` pour alimenter le cache, puis `true` pour exiger la réutilisation native Gradle.
+Le secret doit être accessible à HCPlugins-actions pour ces essais. Une restauration Actions seule
+ne prouve pas que Gradle réutilise la configuration ; vérifier aussi son message explicite.

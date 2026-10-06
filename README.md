@@ -61,12 +61,29 @@ sauvegarder aussi le cache de configuration entre les exécutions, définir une 
 d'organisation `GRADLE_ENCRYPTION_KEY` avec accès aux repositories des plugins, puis conserver
 `secrets: inherit` dans leurs workflows. Sa valeur est une clé AES encodée en base64, générable
 avec `openssl rand -base64 16`. Ce secret est facultatif : les builds continuent de fonctionner
-sans lui, notamment pour les pull requests provenant de forks. Le dépôt `HCPlugins-actions` n'a
-pas besoin de posséder ce secret ; il doit être accessible aux repositories qui appellent le
-workflow.
+sans lui, notamment pour les pull requests provenant de forks. Il doit être accessible aux
+repositories qui appellent le workflow. Le workflow manuel de vérification décrit ci-dessous
+nécessite aussi cet accès dans `HCPlugins-actions`.
+
+L'action composite `setup-gradle` gère les deux répertoires sans chevauchement :
+
+- `gradle/actions/setup-gradle` sauvegarde les dépendances et sorties de compilation dans le Gradle User Home.
+- `actions/cache` sauvegarde uniquement `.gradle/configuration-cache`, chiffré par Gradle avec la clé fournie.
+  Cette persistance est activée pour les wrappers Gradle stables **9.8 ou plus récents**.
+  Sa clé de cache distingue OS, architecture, JDK, fichiers Gradle des builds composites et commit.
+  Un commit différent peut restaurer un cache compatible ; Gradle revalide ses propres entrées.
+
+Ne pas ajouter `setup-java cache: gradle` ou un autre cache du Gradle User Home. Lors d'une
+rotation de la clé AES, supprimer les caches `hcplugins-configuration-v1-*` avant le prochain build.
 
 Comme chaque release reçoit une nouvelle valeur `-Pversion`, Gradle recalcule sa configuration
 pour ces builds ; la clé profite surtout aux exécutions répétées avec les mêmes paramètres.
+
+Pour vérifier la persistance entre deux runners, lancer manuellement
+`Verify Gradle Configuration Cache` dans les Actions de ce dépôt : d'abord avec `expect-reuse=false`,
+puis, sans changer les sources, avec `expect-reuse=true`. Ce workflow compile TranslationKey avec
+Core et PlaceholdersExtra via leurs builds composites, exécute les tests et exige au second passage
+`Reusing configuration cache.`. Il ne publie aucun artifact ni release et n'a aucun déclencheur automatique.
 
 Chaque build réussi de `main` crée automatiquement une nouvelle release :
 

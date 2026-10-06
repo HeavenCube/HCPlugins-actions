@@ -1,0 +1,66 @@
+name: Verify Gradle Configuration Cache
+
+on:
+  workflow_dispatch:
+    inputs:
+      expect-reuse:
+        description: Require Gradle to reuse configuration saved by a previous identical run.
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    concurrency:
+      group: hcplugins-configuration-cache-verification
+      cancel-in-progress: false
+    steps:
+      - name: Checkout TranslationKey main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: HeavenCube/HCPlugins-TranslationKey
+          ref: main
+          persist-credentials: false
+
+      - name: Checkout Core main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: HeavenCube/HCPlugins-Core
+          ref: main
+          path: .hcplugins/HCPlugins-Core
+          persist-credentials: false
+
+      - name: Checkout PlaceholdersExtra main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: HeavenCube/HCPlugins-PlaceholdersExtra
+          ref: main
+          path: .hcplugins/HCPlugins-PlaceholdersExtra
+          persist-credentials: false
+
+      - name: Setup Java and Gradle
+        uses: HeavenCube/HCPlugins-actions/.github/actions/setup-gradle@main
+        with:
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+
+      - name: Build and verify configuration cache
+        shell: bash
+        env:
+          EXPECT_REUSE: ${{ inputs.expect-reuse }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${GRADLE_ENCRYPTION_KEY:-}" ]]; then
+            echo "::error::GRADLE_ENCRYPTION_KEY must be available to verify encrypted caching."
+            exit 1
+          fi
+          log="${RUNNER_TEMP}/gradle-cache-verification.log"
+          ./gradlew build --stacktrace | tee "${log}"
+          if [[ "${EXPECT_REUSE}" == "true" ]] && ! grep -Fq 'Reusing configuration cache.' "${log}"; then
+            echo "::error::Gradle did not reuse the restored configuration cache; inspect its invalidation message above."
+            exit 1
+          fi
