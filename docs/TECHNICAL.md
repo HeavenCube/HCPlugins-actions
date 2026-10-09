@@ -39,6 +39,20 @@ Dependabot gardent leurs tests, avec le secret de lecture ; Dependabot doit poss
 distinct du même nom. Ne pas basculer vers pull_request_target pour exécuter le code d'un fork
 avec le token. La revue mainteneur précède toute validation ayant accès aux sources privées.
 
+### Mise à jour Dependabot et build de ses PR
+
+Le scan des versions de dépendances et le build d'une PR Dependabot sont deux opérations distinctes.
+Le token Core ci-dessus concerne le checkout Git effectué par le build. Pour un registre Maven
+personnalisé, chaque consommateur doit aussi déclarer son URL sous `registries` dans
+`.github/dependabot.yml` et référencer son nom dans l'entrée `updates` Gradle, même si le registre
+est public et anonyme. Ne pas fournir le token Core à un registre tiers.
+
+En cas d'erreur `private_source_authentication_failure`, lire la source et les lignes du proxy.
+`egress not allowlisted <host>` signifie que le domaine n'est pas autorisé, pas qu'un mot de passe
+manque. Déclarer uniquement les registres nécessaires à ce job ; conserver les registres et versions
+Gradle dans le consommateur. Ce scan est géré par Dependabot, pas par le workflow de release.
+Référence : [hôtes bloqués dans un job Dependabot](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/manage-your-dependency-security/resolve-a-blocked-host).
+
 ## Version et release
 
 Sur push/workflow_dispatch de la branche configurée, `create-release` alloue max des releases

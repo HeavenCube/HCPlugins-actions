@@ -186,6 +186,11 @@ before runner allocation and require maintainer review before a trusted build. L
 authenticated access to the sibling Core clone. Never commit tokens or execute unreviewed fork code
 with the private-source credential.
 
+For Dependabot's version scan, also declare custom Maven registries in `.github/dependabot.yml`
+and reference them in its Gradle update entry, including anonymous public registries. This allows
+their hosts through Dependabot's network proxy; the Core Git token is unrelated to that access.
+See [the Dependabot guide](TECHNICAL.md#mise-à-jour-dependabot-et-build-de-ses-pr).
+
 Public callers using Core retain dependency/wrapper caches and encrypted configuration caching;
 compiled Core classes and build scripts must not be persisted in unencrypted public caches.
 
